@@ -49,17 +49,16 @@
     a{color:inherit; text-decoration:none}
   </style>
 
-  <!-- Sentry (opcional). Si no usas Sentry, deja DSN en blanco. -->
+  <!-- 1) Config con tus claves -->
+  <script src="config.js"></script>
+
+  <!-- 2) Sentry (opcional). Si SENTRY_DSN está vacío, no hace nada -->
   <script src="https://browser.sentry-cdn.com/8.20.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
   <script>
     (function(){
-      var DSN = "https://97b0555cdf0adfad5d2d87b8fb30123c@o4510152610021376.ingest.us.sentry.io/4510152636432384";  /* <-- pega tu DSN o deja "" */
+      var DSN = (window.APP_CONFIG && window.APP_CONFIG.SENTRY_DSN) || "";
       if (DSN && window.Sentry) {
-        Sentry.init({
-          dsn: DSN,
-          environment: "production",
-          tracesSampleRate: 0
-        });
+        Sentry.init({ dsn: DSN, environment: "production", tracesSampleRate: 0 });
       }
     })();
   </script>
@@ -85,7 +84,7 @@
         <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
         <button class="nav-btn" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="muted" style="margin-top:10px">v0.5 · sin backticks</div>
+      <div class="muted" style="margin-top:10px">v0.6 · config.js</div>
     </aside>
 
     <main>
@@ -156,9 +155,12 @@
       ]);
     }
 
-    /************* 1) Configurar Supabase *************/
-    var SUPABASE_URL = "https://qsskzmzplqgxdhwspqeo.supabase.co";         /* <-- pega tu URL */
-    var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzc2t6bXpwbHFneGRod3NwcWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4OTYwMTMsImV4cCI6MjA3NTQ3MjAxM30.N3Gq1toKmvqRnHsNjQIB_ZNdtN908xvCn2Z0UF2NqIg"; /* <-- pega tu anon key */
+    /************* 1) Claves desde config.js *************/
+    var SUPABASE_URL      = (window.APP_CONFIG && window.APP_CONFIG.SUPABASE_URL)      || "";
+    var SUPABASE_ANON_KEY = (window.APP_CONFIG && window.APP_CONFIG.SUPABASE_ANON_KEY) || "";
+    if (!/^https?:\/\//.test(SUPABASE_URL) || !SUPABASE_ANON_KEY) {
+      debug('⚠️ Configura SUPABASE_URL / ANON_KEY en config.js');
+    }
 
     /************* 2) Navegación (sin cadenas de HTML) *************/
     var VIEWS = {
@@ -183,11 +185,8 @@
     var topActions = document.getElementById('topActions');
 
     function setActive(tab){
-      // activar botón
       $all('.nav-btn', navEl).forEach(function(b){ b.classList.toggle('active', b.dataset.view===tab); });
-      // título
       titleEl.textContent = tab.charAt(0).toUpperCase()+tab.slice(1);
-      // vista
       viewEl.innerHTML = '';
       var viewFactory = VIEWS[tab];
       if (typeof viewFactory === 'function'){
@@ -230,7 +229,6 @@
     }
 
     function initSociosView(){
-      // botón "Crear categoría de socios" sin backticks
       topActions.innerHTML = '<button class="btn primary" id="btnNuevaCat">Crear categoría de socios</button>';
       var b = document.getElementById('btnNuevaCat');
       if (b) b.addEventListener('click', function(){ openModal(); });
