@@ -131,15 +131,46 @@
     const fmt = (n)=> Number(n).toLocaleString('es-CO',{maximumFractionDigits:2});
 
 /************* 2) Navegación *************/
+
+// ayudantes para crear DOM sin strings
+function el(tag, attrs = {}, children = []) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') node.className = v;
+    else if (k === 'style') Object.assign(node.style, v);
+    else node.setAttribute(k, v);
+  }
+  for (const c of [].concat(children)) {
+    if (c == null) continue;
+    if (typeof c === 'string') node.appendChild(document.createTextNode(c));
+    else node.appendChild(c);
+  }
+  return node;
+}
+function cardDemo(titulo) {
+  return el('div', { class: 'card' }, [
+    el('h3', {}, [titulo]),
+    el('p', { class: 'muted' }, ['Vista demo.'])
+  ]);
+}
+
 const VIEWS = {
-  pedidos: '<div class="card"><h3>Pedidos</h3><p class="muted">Vista demo.</p></div>',
-  seguimiento: '<div class="card"><h3>Seguimiento</h3><p class="muted">Vista demo.</p></div>',
-  clientes: '<div class="card"><h3>Clientes</h3><p class="muted">Vista demo.</p></div>',
-  inventario: '<div class="card"><h3>Inventario</h3><p class="muted">Vista demo.</p></div>',
-  devoluciones: '<div class="card"><h3>Devoluciones</h3><p class="muted">Vista demo.</p></div>',
-  transacciones: '<div class="card"><h3>Transacciones</h3><p class="muted">Vista demo.</p></div>',
-  socios: '<div id="sociosRoot"><div id="socTop" class="actions" style="margin-bottom:12px"></div><div id="socGrid" class="grid"></div></div>'
+  pedidos: () => cardDemo('Pedidos'),
+  seguimiento: () => cardDemo('Seguimiento'),
+  clientes: () => cardDemo('Clientes'),
+  inventario: () => cardDemo('Inventario'),
+  devoluciones: () => cardDemo('Devoluciones'),
+  transacciones: () => cardDemo('Transacciones'),
+  socios: () => {
+    const root = el('div', { id: 'sociosRoot' });
+    root.append(
+      el('div', { id: 'socTop', class: 'actions', style: { marginBottom: '12px' } }),
+      el('div', { id: 'socGrid', class: 'grid' }),
+    );
+    return root;
+  }
 };
+
 
 
     const titleEl = document.getElementById('title');
@@ -153,8 +184,14 @@ const VIEWS = {
       // título
       titleEl.textContent = tab.charAt(0).toUpperCase()+tab.slice(1);
       // vista
-      viewEl.innerHTML = VIEWS[tab] || '<div class="card">Sin contenido.</div>';
-      location.hash = tab;
+      const viewFactory = VIEWS[tab];
+viewEl.innerHTML = '';
+if (typeof viewFactory === 'function') {
+  viewEl.appendChild(viewFactory());
+} else {
+  viewEl.appendChild(cardDemo('Sin contenido'));
+}
+
 
       if(tab==='socios'){ initSociosView(); }
       else { topActions.innerHTML = ''; }
