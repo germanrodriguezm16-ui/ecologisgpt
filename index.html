@@ -109,7 +109,15 @@
       </form>
     </div>
   </div>
-
+<!-- Sentry (monitoreo de errores) -->
+<script src="https://browser.sentry-cdn.com/8.20.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
+<script>
+  Sentry.init({
+    dsn: "https://97b0555cdf0adfad5d2d87b8fb30123c@o4510152610021376.ingest.us.sentry.io/4510152636432384",
+    environment: "production",
+    tracesSampleRate: 0, // solo capturar errores por ahora, sin métricas
+  });
+</script>
   <script>
     /************* 1) Pega tus valores de Supabase *************/
     const SUPABASE_URL = "https://qsskzmzplqgxdhwspqeo.supabase.co";
