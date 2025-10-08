@@ -48,6 +48,21 @@
     @media (max-width:900px){ .layout{grid-template-columns:1fr} aside{position:static; height:auto} .modal .grid2{grid-template-columns:1fr} }
     a{color:inherit; text-decoration:none}
   </style>
+
+  <!-- Sentry (opcional). Si no usas Sentry, deja DSN en blanco. -->
+  <script src="https://browser.sentry-cdn.com/8.20.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
+  <script>
+    (function(){
+      var DSN = "https://97b0555cdf0adfad5d2d87b8fb30123c@o4510152610021376.ingest.us.sentry.io/4510152636432384";  /* <-- pega tu DSN o deja "" */
+      if (DSN && window.Sentry) {
+        Sentry.init({
+          dsn: DSN,
+          environment: "production",
+          tracesSampleRate: 0
+        });
+      }
+    })();
+  </script>
 </head>
 <body>
   <div class="debug" id="debug">listo</div>
@@ -66,11 +81,11 @@
         <button class="nav-btn" data-view="seguimiento">📍 Seguimiento</button>
         <button class="nav-btn" data-view="clientes">👥 Clientes</button>
         <button class="nav-btn" data-view="inventario">📦 Inventario</button>
-        <button class="nav-btn" data-view="devoluciones">↩ Devoluciones</button>
+        <button class="nav-btn" data-view="devoluciones">↩️ Devoluciones</button>
         <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
         <button class="nav-btn" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="muted" style="margin-top:10px">v0.4 · navegación + estados visibles</div>
+      <div class="muted" style="margin-top:10px">v0.5 · sin backticks</div>
     </aside>
 
     <main>
@@ -109,199 +124,189 @@
       </form>
     </div>
   </div>
-<!-- Sentry (monitoreo de errores) -->
-<script src="https://browser.sentry-cdn.com/8.20.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
-<script>
-  Sentry.init({
-    dsn: "https://97b0555cdf0adfad5d2d87b8fb30123c@o4510152610021376.ingest.us.sentry.io/4510152636432384",
-    environment: "production",
-    tracesSampleRate: 0, // solo capturar errores por ahora, sin métricas
-  });
-</script>
+
   <script>
-    /************* 1) Pega tus valores de Supabase *************/
-    const SUPABASE_URL = "https://qsskzmzplqgxdhwspqeo.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzc2t6bXpwbHFneGRod3NwcWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4OTYwMTMsImV4cCI6MjA3NTQ3MjAxM30.N3Gq1toKmvqRnHsNjQIB_ZNdtN908xvCn2Z0UF2NqIg";
-
     /************* utilidades UI *************/
-    const $ = (s,el=document)=>el.querySelector(s);
-    const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
-    const debug = (msg)=>{ document.getElementById('debug').textContent = String(msg); }
-    const esc = (s)=> String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    const fmt = (n)=> Number(n).toLocaleString('es-CO',{maximumFractionDigits:2});
+    function $(s, el){ return (el||document).querySelector(s); }
+    function $all(s, el){ return Array.prototype.slice.call((el||document).querySelectorAll(s)); }
+    function debug(msg){ var d=document.getElementById('debug'); if(d) d.textContent=String(msg); }
+    function esc(s){ return String(s).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
+    function fmt(n){ return Number(n).toLocaleString('es-CO',{maximumFractionDigits:2}); }
 
-/************* 2) Navegación *************/
+    /************* helper DOM sin strings *************/
+    function el(tag, attrs, children){
+      var node=document.createElement(tag), k;
+      attrs=attrs||{};
+      for(k in attrs){
+        if(k==='class'){ node.className=attrs[k]; }
+        else if(k==='style'){ for(var s in attrs[k]) node.style[s]=attrs[k][s]; }
+        else{ node.setAttribute(k, attrs[k]); }
+      }
+      (children||[]).forEach(function(c){
+        if(c==null) return;
+        if(typeof c==='string') node.appendChild(document.createTextNode(c));
+        else node.appendChild(c);
+      });
+      return node;
+    }
+    function cardDemo(titulo){
+      return el('div',{class:'card'},[
+        el('h3',null,[titulo]),
+        el('p',{class:'muted'},['Vista demo.'])
+      ]);
+    }
 
-// ayudantes para crear DOM sin strings
-function el(tag, attrs = {}, children = []) {
-  const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'class') node.className = v;
-    else if (k === 'style') Object.assign(node.style, v);
-    else node.setAttribute(k, v);
-  }
-  for (const c of [].concat(children)) {
-    if (c == null) continue;
-    if (typeof c === 'string') node.appendChild(document.createTextNode(c));
-    else node.appendChild(c);
-  }
-  return node;
-}
-function cardDemo(titulo) {
-  return el('div', { class: 'card' }, [
-    el('h3', {}, [titulo]),
-    el('p', { class: 'muted' }, ['Vista demo.'])
-  ]);
-}
+    /************* 1) Configurar Supabase *************/
+    var SUPABASE_URL = "https://qsskzmzplqgxdhwspqeo.supabase.co";         /* <-- pega tu URL */
+    var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzc2t6bXpwbHFneGRod3NwcWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4OTYwMTMsImV4cCI6MjA3NTQ3MjAxM30.N3Gq1toKmvqRnHsNjQIB_ZNdtN908xvCn2Z0UF2NqIg"; /* <-- pega tu anon key */
 
-const VIEWS = {
-  pedidos: () => cardDemo('Pedidos'),
-  seguimiento: () => cardDemo('Seguimiento'),
-  clientes: () => cardDemo('Clientes'),
-  inventario: () => cardDemo('Inventario'),
-  devoluciones: () => cardDemo('Devoluciones'),
-  transacciones: () => cardDemo('Transacciones'),
-  socios: () => {
-    const root = el('div', { id: 'sociosRoot' });
-    root.append(
-      el('div', { id: 'socTop', class: 'actions', style: { marginBottom: '12px' } }),
-      el('div', { id: 'socGrid', class: 'grid' }),
-    );
-    return root;
-  }
-};
+    /************* 2) Navegación (sin cadenas de HTML) *************/
+    var VIEWS = {
+      pedidos: function(){ return cardDemo('Pedidos'); },
+      seguimiento: function(){ return cardDemo('Seguimiento'); },
+      clientes: function(){ return cardDemo('Clientes'); },
+      inventario: function(){ return cardDemo('Inventario'); },
+      devoluciones: function(){ return cardDemo('Devoluciones'); },
+      transacciones: function(){ return cardDemo('Transacciones'); },
+      socios: function(){
+        var root = el('div',{id:'sociosRoot'},[
+          el('div',{id:'socTop',class:'actions',style:{marginBottom:'12px'}},[]),
+          el('div',{id:'socGrid',class:'grid'},[])
+        ]);
+        return root;
+      }
+    };
 
-
-
-    const titleEl = document.getElementById('title');
-    const viewEl = document.getElementById('view');
-    const navEl = document.getElementById('nav');
-    const topActions = document.getElementById('topActions');
+    var titleEl = document.getElementById('title');
+    var viewEl = document.getElementById('view');
+    var navEl = document.getElementById('nav');
+    var topActions = document.getElementById('topActions');
 
     function setActive(tab){
       // activar botón
-      $$('.nav-btn', navEl).forEach(b=> b.classList.toggle('active', b.dataset.view===tab));
+      $all('.nav-btn', navEl).forEach(function(b){ b.classList.toggle('active', b.dataset.view===tab); });
       // título
       titleEl.textContent = tab.charAt(0).toUpperCase()+tab.slice(1);
       // vista
-      const viewFactory = VIEWS[tab];
-viewEl.innerHTML = '';
-if (typeof viewFactory === 'function') {
-  viewEl.appendChild(viewFactory());
-} else {
-  viewEl.appendChild(cardDemo('Sin contenido'));
-}
-
+      viewEl.innerHTML = '';
+      var viewFactory = VIEWS[tab];
+      if (typeof viewFactory === 'function'){
+        viewEl.appendChild(viewFactory());
+      } else {
+        viewEl.appendChild(cardDemo('Sin contenido'));
+      }
+      location.hash = tab;
 
       if(tab==='socios'){ initSociosView(); }
       else { topActions.innerHTML = ''; }
     }
 
-    navEl.addEventListener('click', (e)=>{
-      const btn = e.target.closest('.nav-btn'); if(!btn) return;
+    navEl.addEventListener('click', function(e){
+      var btn = e.target.closest('.nav-btn'); if(!btn) return;
       setActive(btn.dataset.view);
     });
 
     // inicial
     setActive((location.hash||'#socios').slice(1));
 
-    /************* 3) Socios → Categorías (Supabase) *************/
-    let supabaseClient, editId=null;
-
-    // carga supabase sdk
+    /************* 3) Cargar SDK Supabase *************/
+    var supabaseClient = null;
     (function addSupabase(){
-      const s=document.createElement('script');
+      var s=document.createElement('script');
       s.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js";
-      s.onload=()=>{ 
-        if(!SUPABASE_URL.startsWith('http')){ debug('⚠ Configura SUPABASE_URL/ANON_KEY'); return; }
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        // si estamos en la vista socios, carga
+      s.onload=function(){
+        if(!/^https?:\/\//.test(SUPABASE_URL)){ debug('⚠️ Configura SUPABASE_URL/ANON_KEY'); return; }
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         if(location.hash.replace('#','')==='socios') loadCategorias();
       };
       document.head.appendChild(s);
     })();
 
-    function initSociosView(){
-      topActions.innerHTML = <button class="btn primary" id="btnNuevaCat">Crear categoría de socios</button>;
-      $('#btnNuevaCat').addEventListener('click', ()=>openModal());
-      if(supabaseClient){ loadCategorias(); }
-    }
-
+    /************* 4) Socios → Categorías *************/
     function svg(icon){
       if(icon==='edit') return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" stroke-width="1.5"/></svg>';
       if(icon==='trash') return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V4h6v3m-8 3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
       return '';
     }
 
-    async function loadCategorias(){
-      const grid = $('#socGrid');
-      if(!grid) return;
-      grid.innerHTML = <div class="loading">Cargando categorías…</div>;
-      debug('cargando…');
-
-      const { data, error } = await supabaseClient
-        .from('categorias_socios')
-        .select('*')
-        .order('created_at', { ascending:false });
-
-      if(error){
-        grid.innerHTML = <div class="error">Error: ${esc(error.message)}</div>;
-        debug('error: '+error.message);
-        return;
-      }
-      debug(ok: ${data.length} filas);
-      renderCards(data||[]);
+    function initSociosView(){
+      // botón "Crear categoría de socios" sin backticks
+      topActions.innerHTML = '<button class="btn primary" id="btnNuevaCat">Crear categoría de socios</button>';
+      var b = document.getElementById('btnNuevaCat');
+      if (b) b.addEventListener('click', function(){ openModal(); });
+      if(supabaseClient){ loadCategorias(); }
     }
 
     function renderCards(rows){
-      const grid = $('#socGrid'); if(!grid) return;
-      if(!rows.length){ grid.innerHTML = <div class="empty">Aún no hay categorías.</div>; return; }
+      var grid = document.getElementById('socGrid'); if(!grid) return;
+      if(!rows.length){ grid.innerHTML = '<div class="empty">Aún no hay categorías.</div>'; return; }
 
-      grid.innerHTML = rows.map(r=>`
-        <div class="card" data-id="${r.id}">
-          <div class="row">
-            <div>
-              <div style="display:flex; align-items:center; gap:8px; font-weight:700">
-                <span class="color-dot" style="background:${r.color||'#3ba55d'}"></span>
-                ${esc(r.nombre)}
-              </div>
-              <div class="muted" style="margin-top:6px">Balance: $${fmt(r.balance||0)}</div>
-            </div>
-            <div class="actions">
-              <button class="icon-btn" title="Editar" data-edit="${r.id}">${svg('edit')}</button>
-              <button class="icon-btn" title="Eliminar" data-del="${r.id}">${svg('trash')}</button>
-            </div>
-          </div>
-        </div>
-      `).join('');
+      grid.innerHTML = rows.map(function(r){
+        return ''
+        + '<div class="card" data-id="'+esc(r.id)+'">'
+        + '  <div class="row">'
+        + '    <div>'
+        + '      <div style="display:flex; align-items:center; gap:8px; font-weight:700">'
+        + '        <span class="color-dot" style="background:'+(r.color||'#3ba55d')+'"></span>'
+        +          esc(r.nombre)
+        + '      </div>'
+        + '      <div class="muted" style="margin-top:6px">Balance: $'+fmt(r.balance||0)+'</div>'
+        + '    </div>'
+        + '    <div class="actions">'
+        + '      <button class="icon-btn" title="Editar" data-edit="'+esc(r.id)+'">'+svg('edit')+'</button>'
+        + '      <button class="icon-btn" title="Eliminar" data-del="'+esc(r.id)+'">'+svg('trash')+'</button>'
+        + '    </div>'
+        + '  </div>'
+        + '</div>';
+      }).join('');
 
-      $$('#socGrid [data-edit]').forEach(b=>{
-        b.addEventListener('click', ()=>{
-          const id=b.getAttribute('data-edit');
-          const row = rows.find(x=>x.id===id);
+      $all('#socGrid [data-edit]').forEach(function(b){
+        b.addEventListener('click', function(){
+          var id=b.getAttribute('data-edit');
+          var row = rows.find(function(x){ return x.id===id; });
           openModal(row);
         });
       });
-      $$('#socGrid [data-del]').forEach(b=>{
-        b.addEventListener('click', ()=>{
-          const id=b.getAttribute('data-del');
+      $all('#socGrid [data-del]').forEach(function(b){
+        b.addEventListener('click', function(){
+          var id=b.getAttribute('data-del');
           deleteCat(id);
         });
       });
     }
 
+    async function loadCategorias(){
+      var grid = document.getElementById('socGrid');
+      if(!grid) return;
+      grid.innerHTML = '<div class="loading">Cargando categorías…</div>';
+      debug('cargando…');
+
+      var resp = await supabaseClient.from('categorias_socios').select('*').order('created_at',{ascending:false});
+      var data = resp.data, error = resp.error;
+
+      if(error){
+        grid.innerHTML = '<div class="error">Error: '+esc(error.message)+'</div>';
+        debug('error: '+error.message);
+        return;
+      }
+      debug('ok: '+data.length+' filas');
+      renderCards(data||[]);
+    }
+
     // Modal
-    const modal = document.getElementById('modalCat');
-    const form = document.getElementById('formCat');
+    var modal = document.getElementById('modalCat');
+    var form = document.getElementById('formCat');
+    var editId=null;
+
     document.getElementById('btnCancelCat').addEventListener('click', closeModal);
-    modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
+    modal.addEventListener('click', function(e){ if(e.target===modal) closeModal(); });
     form.addEventListener('submit', onSave);
 
-    function openModal(cat=null){
-      editId = cat?.id || null;
-      form.nombre.value = cat?.nombre || '';
-      form.color.value = cat?.color || '#3ba55d';
-      form.balance.value = cat?.balance ?? 0;
+    function openModal(cat){
+      editId = cat && cat.id ? cat.id : null;
+      form.nombre.value = cat && cat.nombre ? cat.nombre : '';
+      form.color.value = cat && cat.color ? cat.color : '#3ba55d';
+      form.balance.value = (cat && typeof cat.balance!=='undefined') ? cat.balance : 0;
       document.getElementById('modalTitle').textContent = editId ? 'Editar categoría' : 'Nueva categoría';
       modal.style.display='flex';
     }
@@ -310,16 +315,16 @@ if (typeof viewFactory === 'function') {
     async function onSave(e){
       e.preventDefault();
       if(!supabaseClient){ alert('Sin cliente Supabase'); return; }
-      const nombre = form.nombre.value.trim();
-      const color  = form.color.value || '#3ba55d';
-      const balance = parseFloat(form.balance.value||'0');
+      var nombre = form.nombre.value.trim();
+      var color  = form.color.value || '#3ba55d';
+      var balance = parseFloat(form.balance.value||'0');
       if(!nombre){ alert('El nombre es obligatorio'); return; }
 
-      let error;
+      var error;
       if(editId){
-        ({ error } = await supabaseClient.from('categorias_socios').update({ nombre, color, balance }).eq('id', editId));
+        error = (await supabaseClient.from('categorias_socios').update({ nombre:nombre, color:color, balance:balance }).eq('id', editId)).error;
       }else{
-        ({ error } = await supabaseClient.from('categorias_socios').insert([{ nombre, color, balance }]));
+        error = (await supabaseClient.from('categorias_socios').insert([{ nombre:nombre, color:color, balance:balance }])).error;
       }
       if(error){ alert('Error: '+error.message); debug('error: '+error.message); return; }
 
@@ -328,7 +333,7 @@ if (typeof viewFactory === 'function') {
 
     async function deleteCat(id){
       if(!confirm('¿Eliminar esta categoría?')) return;
-      const { error } = await supabaseClient.from('categorias_socios').delete().eq('id', id);
+      var error = (await supabaseClient.from('categorias_socios').delete().eq('id', id)).error;
       if(error){ alert('Error: '+error.message); debug('error: '+error.message); return; }
       loadCategorias();
     }
