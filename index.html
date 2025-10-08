@@ -27,18 +27,18 @@
     .btn{appearance:none; border:1px solid var(--border); background:var(--card); color:var(--text); padding:10px 12px; border-radius:10px; cursor:pointer}
     .btn.primary{background:var(--primary); border-color:#2b8a3e; color:#0a140d; font-weight:700}
     .grid{display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
-    .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; position:relative; overflow:hidden}
-    .card .row{display:flex; justify-content:space-between; gap:8px; align-items:flex-start}
+    .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px}
+    .row{display:flex; justify-content:space-between; gap:8px; align-items:flex-start}
     .chip{display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid var(--border); font-size:12px; color:var(--muted)}
     .color-dot{width:12px; height:12px; border-radius:999px; display:inline-block; margin-right:6px; border:1px solid #0005}
     .actions{display:flex; gap:8px}
     .icon-btn{background:transparent; border:1px solid var(--border); border-radius:10px; width:34px; height:34px; display:grid; place-items:center; cursor:pointer}
     .icon{width:18px; height:18px; display:block}
-    .footer{margin-top:20px; color:var(--muted); font-size:12px}
+    .empty, .error, .loading{color:var(--muted); padding:16px}
+    .debug{position:fixed; right:12px; top:12px; background:#09111a; border:1px solid var(--border); padding:8px 10px; border-radius:10px; font-size:12px; color:var(--muted); z-index:99}
     input[type="text"], input[type="number"], input[type="email"], input[type="color"]{
       background:var(--card); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:10px; width:100%
     }
-    select{background:var(--card); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:10px}
     /* Modal */
     .backdrop{position:fixed; inset:0; background:rgb(0 0 0 / .5); display:none; align-items:center; justify-content:center; padding:16px; z-index:50}
     .modal{background:var(--card); border:1px solid var(--border); border-radius:16px; max-width:520px; width:100%; padding:16px}
@@ -50,6 +50,8 @@
   </style>
 </head>
 <body>
+  <div class="debug" id="debug">listo</div>
+
   <div class="layout">
     <aside>
       <div class="brand">
@@ -66,26 +68,21 @@
         <button class="nav-btn" data-view="inventario">📦 Inventario</button>
         <button class="nav-btn" data-view="devoluciones">↩ Devoluciones</button>
         <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
-        <button class="nav-btn active" data-view="socios">🤝 Socios</button>
+        <button class="nav-btn" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="footer">v0.3 · Categorías de socios conectadas a Supabase</div>
+      <div class="muted" style="margin-top:10px">v0.4 · navegación + estados visibles</div>
     </aside>
 
     <main>
       <div class="topbar">
-        <div class="title" id="title">Socios</div>
-        <div class="actions">
-          <button class="btn primary" id="btnNuevaCat">Crear categoría de socios</button>
-        </div>
+        <div class="title" id="title">—</div>
+        <div id="topActions"></div>
       </div>
-
-      <div id="view">
-        <div class="grid" id="gridCategorias"></div>
-      </div>
+      <div id="view"></div>
     </main>
   </div>
 
-  <!-- Modal Crear/Editar Categoría -->
+  <!-- Modal Categoría -->
   <div class="backdrop" id="modalCat">
     <div class="modal">
       <h3 id="modalTitle">Nueva categoría</h3>
@@ -103,7 +100,7 @@
         <div style="margin-top:12px">
           <label>Balance (placeholder)</label>
           <input name="balance" type="number" step="0.01" value="0" />
-          <div class="muted" style="margin-top:6px">Más adelante este valor se calculará; por ahora es editable.</div>
+          <div class="muted" style="margin-top:6px">Luego será calculado automáticamente.</div>
         </div>
         <div class="modal footer">
           <button type="button" class="btn" id="btnCancelCat">Cancelar</button>
@@ -114,40 +111,149 @@
   </div>
 
   <script>
-    /************* 1) Configurar Supabase (pega tus valores) *************/
-    // REEMPLAZA estos dos valores por los de tu proyecto (Settings → API)
-    const SUPABASE_URL = "https://qsskzmzplqgxdhwspqeo.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzc2t6bXpwbHFneGRod3NwcWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4OTYwMTMsImV4cCI6MjA3NTQ3MjAxM30.N3Gq1toKmvqRnHsNjQIB_ZNdtN908xvCn2Z0UF2NqIg";
+    /************* 1) Pega tus valores de Supabase *************/
+    const SUPABASE_URL = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzc2t6bXpwbHFneGRod3NwcWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4OTYwMTMsImV4cCI6MjA3NTQ3MjAxM30.N3Gq1toKmvqRnHsNjQIB_ZNdtN908xvCn2Z0UF2NqIg";
+    const SUPABASE_ANON_KEY = "PEGAR_AQUI_TU_ANON_KEY";
 
-    /************* 2) Cliente Supabase *************/
-    // Cargamos el SDK ligero desde CDN para no complicar tu flujo
-    ;(function addSupabase(){
+    /************* utilidades UI *************/
+    const $ = (s,el=document)=>el.querySelector(s);
+    const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
+    const debug = (msg)=>{ document.getElementById('debug').textContent = String(msg); }
+    const esc = (s)=> String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const fmt = (n)=> Number(n).toLocaleString('es-CO',{maximumFractionDigits:2});
+
+    /************* 2) Navegación *************/
+    const VIEWS = {
+      pedidos: <div class="card"><h3>Pedidos</h3><p class="muted">Vista demo.</p></div>,
+      seguimiento: <div class="card"><h3>Seguimiento</h3><p class="muted">Vista demo.</p></div>,
+      clientes: <div class="card"><h3>Clientes</h3><p class="muted">Vista demo.</p></div>,
+      inventario: <div class="card"><h3>Inventario</h3><p class="muted">Vista demo.</p></div>,
+      devoluciones: <div class="card"><h3>Devoluciones</h3><p class="muted">Vista demo.</p></div>,
+      transacciones: <div class="card"><h3>Transacciones</h3><p class="muted">Vista demo.</p></div>,
+      socios: `<div id="sociosRoot">
+        <div id="socTop" class="actions" style="margin-bottom:12px"></div>
+        <div id="socGrid" class="grid"></div>
+      </div>`
+    };
+
+    const titleEl = document.getElementById('title');
+    const viewEl = document.getElementById('view');
+    const navEl = document.getElementById('nav');
+    const topActions = document.getElementById('topActions');
+
+    function setActive(tab){
+      // activar botón
+      $$('.nav-btn', navEl).forEach(b=> b.classList.toggle('active', b.dataset.view===tab));
+      // título
+      titleEl.textContent = tab.charAt(0).toUpperCase()+tab.slice(1);
+      // vista
+      viewEl.innerHTML = VIEWS[tab] || '<div class="card">Sin contenido.</div>';
+      location.hash = tab;
+
+      if(tab==='socios'){ initSociosView(); }
+      else { topActions.innerHTML = ''; }
+    }
+
+    navEl.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.nav-btn'); if(!btn) return;
+      setActive(btn.dataset.view);
+    });
+
+    // inicial
+    setActive((location.hash||'#socios').slice(1));
+
+    /************* 3) Socios → Categorías (Supabase) *************/
+    let supabaseClient, editId=null;
+
+    // carga supabase sdk
+    (function addSupabase(){
       const s=document.createElement('script');
       s.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js";
-      s.onload=()=>initApp();
+      s.onload=()=>{ 
+        if(!SUPABASE_URL.startsWith('http')){ debug('⚠ Configura SUPABASE_URL/ANON_KEY'); return; }
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // si estamos en la vista socios, carga
+        if(location.hash.replace('#','')==='socios') loadCategorias();
+      };
       document.head.appendChild(s);
     })();
 
-    let supabaseClient;
-    let editId = null;
-
-    function initApp(){
-      if(!SUPABASE_URL.startsWith('http')){ alert('Falta configurar SUPABASE_URL y ANON_KEY en index.html'); return; }
-      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      bindUI();
-      loadCategorias();
+    function initSociosView(){
+      topActions.innerHTML = <button class="btn primary" id="btnNuevaCat">Crear categoría de socios</button>;
+      $('#btnNuevaCat').addEventListener('click', ()=>openModal());
+      if(supabaseClient){ loadCategorias(); }
     }
 
-    /************* 3) UI básica *************/
+    function svg(icon){
+      if(icon==='edit') return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" stroke-width="1.5"/></svg>';
+      if(icon==='trash') return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V4h6v3m-8 3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+      return '';
+    }
+
+    async function loadCategorias(){
+      const grid = $('#socGrid');
+      if(!grid) return;
+      grid.innerHTML = <div class="loading">Cargando categorías…</div>;
+      debug('cargando…');
+
+      const { data, error } = await supabaseClient
+        .from('categorias_socios')
+        .select('*')
+        .order('created_at', { ascending:false });
+
+      if(error){
+        grid.innerHTML = <div class="error">Error: ${esc(error.message)}</div>;
+        debug('error: '+error.message);
+        return;
+      }
+      debug(ok: ${data.length} filas);
+      renderCards(data||[]);
+    }
+
+    function renderCards(rows){
+      const grid = $('#socGrid'); if(!grid) return;
+      if(!rows.length){ grid.innerHTML = <div class="empty">Aún no hay categorías.</div>; return; }
+
+      grid.innerHTML = rows.map(r=>`
+        <div class="card" data-id="${r.id}">
+          <div class="row">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; font-weight:700">
+                <span class="color-dot" style="background:${r.color||'#3ba55d'}"></span>
+                ${esc(r.nombre)}
+              </div>
+              <div class="muted" style="margin-top:6px">Balance: $${fmt(r.balance||0)}</div>
+            </div>
+            <div class="actions">
+              <button class="icon-btn" title="Editar" data-edit="${r.id}">${svg('edit')}</button>
+              <button class="icon-btn" title="Eliminar" data-del="${r.id}">${svg('trash')}</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      $$('#socGrid [data-edit]').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          const id=b.getAttribute('data-edit');
+          const row = rows.find(x=>x.id===id);
+          openModal(row);
+        });
+      });
+      $$('#socGrid [data-del]').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          const id=b.getAttribute('data-del');
+          deleteCat(id);
+        });
+      });
+    }
+
+    // Modal
     const modal = document.getElementById('modalCat');
     const form = document.getElementById('formCat');
-    const grid = document.getElementById('gridCategorias');
-    document.getElementById('btnNuevaCat').addEventListener('click', ()=>openModal());
     document.getElementById('btnCancelCat').addEventListener('click', closeModal);
     modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
     form.addEventListener('submit', onSave);
 
-    function bindUI(){ /* reservado por si añadimos más cosas */ }
     function openModal(cat=null){
       editId = cat?.id || null;
       form.nombre.value = cat?.nombre || '';
@@ -158,94 +264,31 @@
     }
     function closeModal(){ modal.style.display='none'; editId=null; }
 
-    /************* 4) CRUD Supabase *************/
-    async function loadCategorias(){
-      grid.innerHTML = '<div class="muted">Cargando categorías…</div>';
-      const { data, error } = await supabaseClient
-        .from('categorias_socios')
-        .select('*')
-        .order('created_at', { ascending:false });
-
-      if(error){ grid.innerHTML = <div class="muted">Error: ${error.message}</div>; return; }
-      renderCards(data||[]);
-    }
-
-    function svg(icon){ // íconos ligeros (editar / borrar)
-      if(icon==='edit') return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" stroke-width="1.5"/></svg>';
-      if(icon==='trash') return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V4h6v3m-8 3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-      return '';
-    }
-
-    function renderCards(rows){
-      if(rows.length===0){
-        grid.innerHTML = '<div class="muted">Aún no hay categorías. Crea la primera con el botón de arriba.</div>';
-        return;
-      }
-      grid.innerHTML = rows.map(r=>`
-        <div class="card" data-id="${r.id}">
-          <div class="row">
-            <div>
-              <div style="display:flex; align-items:center; gap:8px; font-weight:700">
-                <span class="color-dot" style="background:${r.color||'#3ba55d'}"></span>
-                ${esc(r.nombre)}
-              </div>
-              <div class="muted" style="margin-top:6px">Balance: <span style="font-variant-numeric: tabular-nums">$${fmt(r.balance||0)}</span></div>
-            </div>
-            <div class="actions">
-              <button class="icon-btn" title="Editar" data-edit="${r.id}">${svg('edit')}</button>
-              <button class="icon-btn" title="Eliminar" data-del="${r.id}">${svg('trash')}</button>
-            </div>
-          </div>
-        </div>
-      `).join('');
-
-      // Bind acciones
-      grid.querySelectorAll('[data-edit]').forEach(b=>{
-        const id=b.getAttribute('data-edit');
-        b.addEventListener('click', ()=>{
-          const cat = rows.find(x=>x.id===id);
-          openModal(cat);
-        });
-      });
-      grid.querySelectorAll('[data-del]').forEach(b=>{
-        const id=b.getAttribute('data-del');
-        b.addEventListener('click', ()=> deleteCat(id));
-      });
-    }
-
     async function onSave(e){
       e.preventDefault();
+      if(!supabaseClient){ alert('Sin cliente Supabase'); return; }
       const nombre = form.nombre.value.trim();
       const color  = form.color.value || '#3ba55d';
       const balance = parseFloat(form.balance.value||'0');
-
       if(!nombre){ alert('El nombre es obligatorio'); return; }
+
+      let error;
       if(editId){
-        const { error } = await supabaseClient
-          .from('categorias_socios')
-          .update({ nombre, color, balance })
-          .eq('id', editId);
-        if(error){ alert('Error al actualizar: '+error.message); return; }
+        ({ error } = await supabaseClient.from('categorias_socios').update({ nombre, color, balance }).eq('id', editId));
       }else{
-        const { error } = await supabaseClient
-          .from('categorias_socios')
-          .insert([{ nombre, color, balance }]);
-        if(error){ alert('Error al crear: '+error.message); return; }
+        ({ error } = await supabaseClient.from('categorias_socios').insert([{ nombre, color, balance }]));
       }
-      closeModal();
-      loadCategorias();
+      if(error){ alert('Error: '+error.message); debug('error: '+error.message); return; }
+
+      closeModal(); loadCategorias();
     }
 
     async function deleteCat(id){
       if(!confirm('¿Eliminar esta categoría?')) return;
       const { error } = await supabaseClient.from('categorias_socios').delete().eq('id', id);
-      if(error){ alert('Error al eliminar: '+error.message); return; }
+      if(error){ alert('Error: '+error.message); debug('error: '+error.message); return; }
       loadCategorias();
     }
-
-    /************* Utilidades *************/
-    function esc(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
-    function fmt(n){ return Number(n).toLocaleString('es-CO', { maximumFractionDigits: 2 }); }
   </script>
 </body>
 </html>
