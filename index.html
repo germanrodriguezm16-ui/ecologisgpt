@@ -49,10 +49,10 @@
     a{color:inherit; text-decoration:none}
   </style>
 
-  <!-- 1) Config con tus claves -->
+  <!-- Config con tus claves -->
   <script src="config.js"></script>
 
-  <!-- 2) Sentry (opcional). Si SENTRY_DSN está vacío, no hace nada -->
+  <!-- Sentry (opcional) -->
   <script src="https://browser.sentry-cdn.com/8.20.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
   <script>
     (function(){
@@ -84,7 +84,7 @@
         <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
         <button class="nav-btn" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="muted" style="margin-top:10px">v0.6 · config.js</div>
+      <div class="muted" style="margin-top:10px">v0.7 · fondo de tarjeta con tu color</div>
     </aside>
 
     <main>
@@ -155,6 +155,28 @@
       ]);
     }
 
+    /************* contraste de texto vs. fondo *************/
+    function hexToRgb(hex){
+      hex = String(hex||'').replace('#','');
+      if (hex.length===3) hex = hex.split('').map(function(x){ return x+x; }).join('');
+      var num = parseInt(hex, 16);
+      if (isNaN(num)) return {r:0,g:0,b:0};
+      return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 };
+    }
+    function relLum(c){ // sRGB luminancia
+      function ch(v){ v/=255; return v<=0.03928? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }
+      return 0.2126*ch(c.r) + 0.7152*ch(c.g) + 0.0722*ch(c.b);
+    }
+    function contrastColor(bgHex){
+      var rgb = hexToRgb(bgHex), L = relLum(rgb);
+      return L > 0.5 ? '#000000' : '#ffffff'; // texto negro si es claro, blanco si es oscuro
+    }
+    function borderOn(bgHex){
+      // borde sutil según claridad
+      var rgb = hexToRgb(bgHex), L = relLum(rgb);
+      return L > 0.5 ? 'rgba(0,0,0,.25)' : 'rgba(255,255,255,.25)';
+    }
+
     /************* 1) Claves desde config.js *************/
     var SUPABASE_URL      = (window.APP_CONFIG && window.APP_CONFIG.SUPABASE_URL)      || "";
     var SUPABASE_ANON_KEY = (window.APP_CONFIG && window.APP_CONFIG.SUPABASE_ANON_KEY) || "";
@@ -162,7 +184,7 @@
       debug('⚠️ Configura SUPABASE_URL / ANON_KEY en config.js');
     }
 
-    /************* 2) Navegación (sin cadenas de HTML) *************/
+    /************* 2) Navegación *************/
     var VIEWS = {
       pedidos: function(){ return cardDemo('Pedidos'); },
       seguimiento: function(){ return cardDemo('Seguimiento'); },
@@ -235,33 +257,48 @@
       if(supabaseClient){ loadCategorias(); }
     }
 
+    function buildCard(row){
+      var bg = row.color || '#3ba55d';
+      var txt = contrastColor(bg);
+      var brd = borderOn(bg);
+
+      var card = el('div',{class:'card', style:{ background:bg, borderColor:brd, color:txt }},[]);
+      var top = el('div',{class:'row'},[]);
+      var left = el('div',null,[]);
+      var titleWrap = el('div',{style:{display:'flex',alignItems:'center',gap:'8px',fontWeight:'700'}},[]);
+      var dot = el('span',{class:'color-dot',style:{background:bg,borderColor:'rgba(0,0,0,.25)'}},[]);
+      var title = el('span',null,[String(row.nombre||'—')]);
+      titleWrap.appendChild(dot); titleWrap.appendChild(title);
+      var bal = el('div',{class:'muted',style:{marginTop:'6px', color: txt==='\\#000000' ? 'rgba(0,0,0,.7)' : 'rgba(255,255,255,.7)'}},['Balance: $'+fmt(row.balance||0)]);
+      left.appendChild(titleWrap); left.appendChild(bal);
+
+      var actions = el('div',{class:'actions'},[]);
+      var btnE = el('button',{class:'icon-btn',title:'Editar',style:{color:txt,borderColor:brd}},[]);
+      btnE.innerHTML = svg('edit');
+      btnE.setAttribute('data-edit', String(row.id));
+      var btnD = el('button',{class:'icon-btn',title:'Eliminar',style:{color:txt,borderColor:brd}},[]);
+      btnD.innerHTML = svg('trash');
+      btnD.setAttribute('data-del', String(row.id));
+      actions.appendChild(btnE); actions.appendChild(btnD);
+
+      top.appendChild(left); top.appendChild(actions);
+      card.appendChild(top);
+      card.setAttribute('data-id', String(row.id||''));
+
+      return card;
+    }
+
     function renderCards(rows){
       var grid = document.getElementById('socGrid'); if(!grid) return;
+      grid.innerHTML = '';
       if(!rows.length){ grid.innerHTML = '<div class="empty">Aún no hay categorías.</div>'; return; }
 
-      grid.innerHTML = rows.map(function(r){
-        return ''
-        + '<div class="card" data-id="'+esc(r.id)+'">'
-        + '  <div class="row">'
-        + '    <div>'
-        + '      <div style="display:flex; align-items:center; gap:8px; font-weight:700">'
-        + '        <span class="color-dot" style="background:'+(r.color||'#3ba55d')+'"></span>'
-        +          esc(r.nombre)
-        + '      </div>'
-        + '      <div class="muted" style="margin-top:6px">Balance: $'+fmt(r.balance||0)+'</div>'
-        + '    </div>'
-        + '    <div class="actions">'
-        + '      <button class="icon-btn" title="Editar" data-edit="'+esc(r.id)+'">'+svg('edit')+'</button>'
-        + '      <button class="icon-btn" title="Eliminar" data-del="'+esc(r.id)+'">'+svg('trash')+'</button>'
-        + '    </div>'
-        + '  </div>'
-        + '</div>';
-      }).join('');
+      rows.forEach(function(r){ grid.appendChild(buildCard(r)); });
 
       $all('#socGrid [data-edit]').forEach(function(b){
         b.addEventListener('click', function(){
           var id=b.getAttribute('data-edit');
-          var row = rows.find(function(x){ return x.id===id; });
+          var row = rows.find(function(x){ return String(x.id)===String(id); });
           openModal(row);
         });
       });
