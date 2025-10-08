@@ -1,0 +1,5 @@
+window.APP_CONFIG = {
+  SUPABASE_URL: "https://qsskzmzplqgxdhwspqeo.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzc2t6bXpwbHFneGRod3NwcWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4OTYwMTMsImV4cCI6MjA3NTQ3MjAxM30.N3Gq1toKmvqRnHsNjQIB_ZNdtN908xvCn2Z0UF2NqIg",
+  SENTRY_DSN: "https://97b0555cdf0adfad5d2d87b8fb30123c@o4510152610021376.ingest.us.sentry.io/4510152636432384"
+};
