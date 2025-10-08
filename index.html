@@ -13,7 +13,7 @@
     *{box-sizing:border-box}
     body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--text)}
     .layout{display:grid; grid-template-columns:260px 1fr; min-height:100dvh}
-    aside{background:var(--panel); border-right:1px solid var(--border); padding:16px; position:sticky; top:0; height:100dvh}
+    aside{background:var(--panel); border-right:1px solid var(--border); padding:16px; position:sticky; top:0; height:100dvh; overflow:auto}
     .brand{display:flex; gap:10px; align-items:center; margin-bottom:18px}
     .logo{width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#2b8a3e,var(--primary)); display:grid; place-items:center; font-weight:700}
     .brand h1{font-size:16px; margin:0}
@@ -38,6 +38,7 @@
     }
     .card:hover{ transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0,0,0,.25); }
     .row{display:flex; justify-content:space-between; gap:8px; align-items:flex-start}
+    .row-flex{display:flex; align-items:center; gap:10px}
     .color-dot{width:12px; height:12px; border-radius:999px; display:inline-block; margin-right:6px; border:1px solid #0005}
     .actions{display:flex; gap:8px}
     .icon-btn{
@@ -57,7 +58,7 @@
 
     /* Modal */
     .backdrop{position:fixed; inset:0; background:rgb(0 0 0 / .5); display:none; align-items:center; justify-content:center; padding:16px; z-index:50}
-    .modal{background:var(--card); border:1px solid var(--border); border-radius:16px; max-width:640px; width:100%; padding:16px}
+    .modal{background:var(--card); border:1px solid var(--border); border-radius:16px; max-width:720px; width:100%; padding:16px}
     .modal h3{margin:0 0 12px 0}
     .modal .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
     .modal .footer{display:flex; justify-content:flex-end; gap:10px; margin-top:12px}
@@ -69,13 +70,15 @@
     .list thead th{font-size:12px; text-align:left; color:var(--muted); background:#0f1823; padding:10px 12px; border-bottom:1px solid var(--border)}
     .list tbody td{padding:12px; border-bottom:1px solid var(--border)}
     .mini-actions{display:flex; gap:6px}
-    .avatar{width:36px; height:36px; border-radius:999px; object-fit:cover; background:#0e1520; border:1px solid var(--border)}
-    .row-flex{display:flex; align-items:center; gap:10px}
+    .avatar{width:36px; height:36px; border-radius:12px; object-fit:cover; background:#0e1520; border:1px solid var(--border)}
     .tag{font-size:11px; color:#0b1a0f; background:var(--primary); border:1px solid #2b8a3e; padding:2px 7px; border-radius:999px}
+    .balance-big{font-size:22px; font-weight:800; margin-top:8px}
   </style>
 
   <script src="config.js"></script>
   <script src="https://browser.sentry-cdn.com/8.20.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
+  <!-- SortableJS para drag & drop de tarjetas/filas -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
   <script>
     (function(){
       var DSN = (window.APP_CONFIG && window.APP_CONFIG.SENTRY_DSN) || "";
@@ -166,12 +169,23 @@
             <label>Dirección</label>
             <input name="direccion" type="text" placeholder="Calle 123 #45-67" />
           </div>
+
           <div>
-            <label>Logo / Imagen</label>
+            <label>Balance</label>
+            <input name="balance" type="number" step="0.01" placeholder="0" />
+          </div>
+          <div>
+            <label>Color de tarjeta</label>
+            <input name="card_color" type="color" value="#18213a" />
+          </div>
+
+          <div style="grid-column:1/-1">
+            <label>Logo / Imagen (avatar)</label>
             <input name="avatar" type="file" accept=".png,.jpg,.jpeg" />
-            <div class="muted" style="margin-top:6px">Opcional. Máx 2 MB.</div>
+            <div class="muted" style="margin-top:6px">Opcional. Máx 2 MB. Se sube al bucket público <b>socios</b> y se guarda <code>avatar_url</code>.</div>
           </div>
         </div>
+
         <div class="modal footer">
           <button type="button" class="btn" id="btnCancelSocio">Cancelar</button>
           <button type="submit" class="btn primary">Guardar</button>
@@ -185,7 +199,7 @@
     function $all(s, el){ return Array.prototype.slice.call((el||document).querySelectorAll(s)); }
     function debug(msg){ var d=$('#debug'); if(d) d.textContent=String(msg); }
     function esc(s){ return String(s).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
-    function fmt(n){ return Number(n).toLocaleString('es-CO',{maximumFractionDigits:2}); }
+    function fmtMoney(n){ try{ return Number(n).toLocaleString('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}); }catch(e){ return String(n||0); } }
 
     var SUPABASE_URL      = (window.APP_CONFIG && window.APP_CONFIG.SUPABASE_URL)      || "";
     var SUPABASE_ANON_KEY = (window.APP_CONFIG && window.APP_CONFIG.SUPABASE_ANON_KEY) || "";
@@ -197,6 +211,8 @@
     var titleEl = $('#title'), viewEl = $('#view'), navEl = $('#nav'), topActions = $('#topActions');
     var currentCat=null, currentCatName=''; // para subvista de socios
     var prefView = localStorage.getItem('sociosViewMode') || 'cards'; // 'cards' | 'list'
+    var sortableInstance = null; // para drag & drop
+    var cachedRows = []; // último fetch de socios (para rebind rápido)
 
     var VIEWS = {
       pedidos: function(){ return demoCard('Pedidos'); },
@@ -297,7 +313,7 @@
       var title=el('div',{style:{display:'flex',alignItems:'center',gap:'8px',fontWeight:'700'}},[]);
       title.appendChild(el('span',{class:'color-dot',style:{background:bg}}));
       title.appendChild(el('span',null,[String(row.nombre||'—')]));
-      var bal=el('div',{style:{marginTop:'6px',color:muted}},['Balance: $'+fmt(row.balance||0)]);
+      var bal=el('div',{style:{marginTop:'6px',color:muted}},['Balance: $'+(row.balance!=null? Number(row.balance).toLocaleString('es-CO'):'0')]);
       left.appendChild(title); left.appendChild(bal);
       var ebtn=el('button',{class:'icon-btn edit',title:'Editar'},[]); ebtn.innerHTML=pencil();
       var dbtn=el('button',{class:'icon-btn delete',title:'Eliminar'},[]); dbtn.innerHTML=trash();
@@ -327,10 +343,10 @@
       currentCat=catId; currentCatName=catName||'Socios';
       titleEl.textContent = 'Socios · '+currentCatName;
       viewEl.innerHTML='';
-      // top actions
+      // top actions (incluye Volver, toggle y Crear socio)
       var labelBtn = (currentCatName.toLowerCase()==='proveedores' ? 'Crear proveedor' : 'Crear socio');
       topActions.innerHTML = ''
-        + '<button class="btn ghost" id="btnBack">← Volver</button>'
+        + '<button class="btn ghost" id="btnBack">← Volver a categorías</button>'
         + '<div class="actions-inline">'
         + ' <button class="btn '+(prefView==='list'?'warn':'')+'" id="btnList">Lista</button>'
         + ' <button class="btn '+(prefView==='cards'?'warn':'')+'" id="btnCards">Tarjetas</button>'
@@ -347,7 +363,12 @@
     }
 
     async function fetchSocios(){
-      var q = supabaseClient.from('socios').select('*').eq('categoria_id', currentCat).order('created_at',{ascending:false});
+      // Orden principal por 'orden' asc, secundario por 'created_at' asc para estabilidad
+      var q = supabaseClient.from('socios')
+            .select('*')
+            .eq('categoria_id', currentCat)
+            .order('orden',{ascending:true, nullsFirst:true})
+            .order('created_at',{ascending:true});
       var {data,error} = await q;
       if(error){ return {rows:[], error:error}; }
       return {rows:data||[], error:null};
@@ -358,10 +379,12 @@
       var r = await fetchSocios();
       if(r.error){ cont.innerHTML='<div class="error">'+esc(r.error.message)+'</div>'; return; }
       var rows = r.rows;
+      cachedRows = rows.slice();
+
       if(!rows.length){ cont.innerHTML='<div class="empty">No hay socios en esta categoría.</div>'; return; }
 
-      if(prefView==='list'){ cont.innerHTML=''; cont.appendChild(buildSociosTable(rows)); }
-      else { cont.innerHTML=''; cont.appendChild(buildSociosCards(rows)); }
+      if(prefView==='list'){ cont.innerHTML=''; cont.appendChild(buildSociosTable(rows)); initDragList(); }
+      else { cont.innerHTML=''; cont.appendChild(buildSociosCards(rows)); initDragCards(); }
     }
 
     function initials(txt){
@@ -372,55 +395,76 @@
     function buildSociosTable(rows){
       var table = document.createElement('table'); table.className='list';
       var thead=document.createElement('thead'); var trh=document.createElement('tr');
-      ['','Empresa','Titular','Teléfono','Dirección',''].forEach(function(h){ var th=document.createElement('th'); th.textContent=h; trh.appendChild(th); });
+      ['Orden','Empresa','Titular','Teléfono','Dirección','Balance',''].forEach(function(h){ var th=document.createElement('th'); th.textContent=h; trh.appendChild(th); });
       thead.appendChild(trh); table.appendChild(thead);
 
       var tbody=document.createElement('tbody');
       rows.forEach(function(r){
         var tr=document.createElement('tr');
+        tr.setAttribute('data-id', String(r.id));
 
-        var td0=document.createElement('td');
-        var img=r.avatar_url?('<img class="avatar" src="'+esc(r.avatar_url)+'" alt="">') : ('<div class="avatar" style="display:grid;place-items:center;color:var(--muted);font-weight:700">'+initials(r.empresa)+'</div>');
-        td0.innerHTML=img; tr.appendChild(td0);
+        var tdOrder=document.createElement('td'); tdOrder.textContent = r.orden!=null? r.orden : '—'; tr.appendChild(tdOrder);
 
-        var td1=document.createElement('td'); td1.innerHTML='<div class="row-flex"><span>'+esc(r.empresa)+'</span></div>'; tr.appendChild(td1);
+        var td1=document.createElement('td');
+        var wrap=document.createElement('div'); wrap.className='row-flex';
+        var avatar;
+        if(r.avatar_url){ avatar=document.createElement('img'); avatar.className='avatar'; avatar.src=r.avatar_url; }
+        else { avatar=document.createElement('div'); avatar.className='avatar'; avatar.style.display='grid'; avatar.style.placeItems='center'; avatar.style.color='var(--muted)'; avatar.style.fontWeight='700'; avatar.textContent=initials(r.empresa); }
+        wrap.appendChild(avatar);
+        var titleWrap=document.createElement('div');
+        var h=document.createElement('div'); h.style.fontWeight='700'; h.textContent=r.empresa||'—';
+        var sub=document.createElement('div'); sub.className='muted'; sub.textContent=r.card_color ? ('Color: '+r.card_color) : '—';
+        titleWrap.appendChild(h); titleWrap.appendChild(sub);
+        wrap.appendChild(titleWrap);
+        td1.appendChild(wrap);
+        tr.appendChild(td1);
+
         var td2=document.createElement('td'); td2.textContent=r.titular||'—'; tr.appendChild(td2);
         var td3=document.createElement('td'); td3.textContent=r.telefono||'—'; tr.appendChild(td3);
         var td4=document.createElement('td'); td4.textContent=r.direccion||'—'; tr.appendChild(td4);
+        var td5=document.createElement('td'); td5.textContent=fmtMoney(r.balance||0); tr.appendChild(td5);
 
-        var td5=document.createElement('td'); td5.innerHTML=''
+        var td6=document.createElement('td'); td6.innerHTML=''
           + '<div class="mini-actions">'
           + '<button class="icon-btn edit" data-edit="'+r.id+'">'+pencil()+'</button>'
           + '<button class="icon-btn delete" data-del="'+r.id+'">'+trash()+'</button>'
           + '</div>';
-        tr.appendChild(td5);
+        tr.appendChild(td6);
 
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
 
       // bind actions
-      $all('[data-edit]', table).forEach(function(b){ b.addEventListener('click', function(){ openSocioModal(rows.find(function(x){return String(x.id)===String(b.getAttribute('data-edit'));})); }); });
+      $all('[data-edit]', table).forEach(function(b){ b.addEventListener('click', function(){ openSocioModal(cachedRows.find(function(x){return String(x.id)===String(b.getAttribute('data-edit'));})); }); });
       $all('[data-del]', table).forEach(function(b){ b.addEventListener('click', function(){ deleteSocio(b.getAttribute('data-del')); }); });
 
       return table;
     }
 
     function buildSociosCards(rows){
-      var grid = document.createElement('div'); grid.className='grid';
+      var grid = document.createElement('div'); grid.className='grid'; grid.id='socCardsGrid';
       rows.forEach(function(r){
-        var c=document.createElement('div'); c.className='card';
+        var bg = r.card_color || '#18213a';
+        var txt = contrastColor(bg), brd = borderOn(bg), sub = mutedFor(bg);
+
+        var c=document.createElement('div'); c.className='card'; c.style.background=bg; c.style.color=txt; c.style.borderColor=brd;
+        c.setAttribute('data-id', String(r.id));
+
         var header=document.createElement('div'); header.className='row';
         var left=document.createElement('div'); left.className='row-flex';
+
         var avatar;
         if(r.avatar_url){ avatar=document.createElement('img'); avatar.className='avatar'; avatar.src=r.avatar_url; }
-        else { avatar=document.createElement('div'); avatar.className='avatar'; avatar.style.display='grid'; avatar.style.placeItems='center'; avatar.style.color='var(--muted)'; avatar.style.fontWeight='700'; avatar.textContent=initials(r.empresa); }
+        else { avatar=document.createElement('div'); avatar.className='avatar'; avatar.style.display='grid'; avatar.style.placeItems='center'; avatar.style.color=sub; avatar.style.fontWeight='700'; avatar.textContent=initials(r.empresa); }
         left.appendChild(avatar);
+
         var titleWrap=document.createElement('div');
         var h=document.createElement('div'); h.style.fontWeight='700'; h.textContent=r.empresa||'—';
-        var sub=document.createElement('div'); sub.className='muted'; sub.textContent=r.titular||'—';
-        titleWrap.appendChild(h); titleWrap.appendChild(sub);
+        var subline=document.createElement('div'); subline.className='muted'; subline.style.color=sub; subline.textContent=r.titular||'—';
+        titleWrap.appendChild(h); titleWrap.appendChild(subline);
         left.appendChild(titleWrap);
+
         var actions=document.createElement('div'); actions.className='actions';
         var ebtn=document.createElement('button'); ebtn.className='icon-btn edit'; ebtn.innerHTML=pencil(); ebtn.setAttribute('data-edit',r.id);
         var dbtn=document.createElement('button'); dbtn.className='icon-btn delete'; dbtn.innerHTML=trash(); dbtn.setAttribute('data-del',r.id);
@@ -428,65 +472,141 @@
         header.appendChild(left); header.appendChild(actions);
         c.appendChild(header);
 
-        var meta=document.createElement('div'); meta.className='muted'; meta.style.marginTop='8px';
+        // Balance grande + datos
+        var bal=document.createElement('div'); bal.className='balance-big'; bal.textContent=fmtMoney(r.balance||0);
+        c.appendChild(bal);
+
+        var meta=document.createElement('div'); meta.className='muted'; meta.style.marginTop='6px'; meta.style.color=sub;
         meta.textContent=(r.telefono||'—') + (r.direccion?(' · '+r.direccion):'');
         c.appendChild(meta);
 
         grid.appendChild(c);
       });
 
-      // bind actions
-      $all('[data-edit]', grid).forEach(function(b){ b.addEventListener('click', function(){ openSocioModal(rows.find(function(x){return String(x.id)===String(b.getAttribute('data-edit'));})); }); });
-      $all('[data-del]', grid).forEach(function(b){ b.addEventListener('click', function(){ deleteSocio(b.getAttribute('data-del')); }); });
+      // bind acciones
+      $all('[data-edit]', grid).forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); openSocioModal(cachedRows.find(function(x){return String(x.id)===String(b.getAttribute('data-edit'));})); }); });
+      $all('[data-del]', grid).forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); deleteSocio(b.getAttribute('data-del')); }); });
 
       return grid;
     }
 
-    /* ====== Modal socio con subida de imagen ====== */
+    /* ====== Drag & Drop (guardar orden) ====== */
+    function readOrderFromContainer(containerSelector, itemSelector){
+      var nodes = $all(itemSelector, $(containerSelector));
+      return nodes.map(function(n,idx){ return { id: n.getAttribute('data-id'), orden: idx+1 }; });
+    }
+
+    async function persistOrder(updates){
+      try{
+        // Guardar uno por uno para evitar problemas de RLS
+        await Promise.all(updates.map(function(u){
+          return supabaseClient.from('socios').update({orden: u.orden}).eq('id', u.id);
+        }));
+      }catch(e){
+        console.error(e);
+        alert('No se pudo guardar el orden');
+      }
+    }
+
+    function initDragCards(){
+      var grid = $('#socCardsGrid');
+      if(!grid) return;
+      if (grid._sortable) { grid._sortable.destroy(); }
+      grid._sortable = Sortable.create(grid, {
+        animation: 150,
+        draggable: '.card',
+        onEnd: async function(){
+          var updates = readOrderFromContainer('#socCardsGrid', '.card');
+          await persistOrder(updates);
+          renderSocios();
+        }
+      });
+    }
+
+    function initDragList(){
+      var tbody = $('table.list tbody');
+      if(!tbody) return;
+      if (tbody._sortable) { tbody._sortable.destroy(); }
+      tbody._sortable = Sortable.create(tbody, {
+        animation: 150,
+        draggable: 'tr',
+        onEnd: async function(){
+          var updates = readOrderFromContainer('table.list tbody', 'tr');
+          await persistOrder(updates);
+          renderSocios();
+        }
+      });
+    }
+
+    /* ====== Modal socio con subida de imagen y color/balance ====== */
     var socioModal = $('#modalSocio'), socioForm = $('#formSocio'), socioEditId=null;
     $('#btnCancelSocio').addEventListener('click', function(){ socioModal.style.display='none'; socioEditId=null; });
 
     function openSocioModal(socio){
       socioEditId = socio && socio.id ? socio.id : null;
-      $('#modalSocioTitle').textContent = socioEditId ? 'Editar socio' : (currentCatName.toLowerCase()==='proveedores'?'Editar proveedor':'Nuevo socio').replace('Editar','Nuevo');
-      socioForm.empresa.value = (socio && socio.empresa) || '';
-      socioForm.titular.value = (socio && socio.titular) || '';
-      socioForm.telefono.value = (socio && socio.telefono) || '';
+      $('#modalSocioTitle').textContent = socioEditId ? 'Editar socio' : (currentCatName.toLowerCase()==='proveedores'?'Nuevo proveedor':'Nuevo socio');
+      socioForm.empresa.value   = (socio && socio.empresa) || '';
+      socioForm.titular.value   = (socio && socio.titular) || '';
+      socioForm.telefono.value  = (socio && socio.telefono) || '';
       socioForm.direccion.value = (socio && socio.direccion) || '';
+      socioForm.balance.value   = (socio && socio.balance!=null) ? socio.balance : '';
+      socioForm.card_color.value = (socio && socio.card_color) || '#18213a';
       socioForm.avatar.value = '';
       socioModal.style.display='flex';
+    }
+
+    async function nextOrdenForCategory(){
+      // obtiene siguiente orden basándose en cantidad actual
+      var {count, error} = await supabaseClient
+        .from('socios')
+        .select('*', { head: true, count: 'exact' })
+        .eq('categoria_id', currentCat);
+      if(error){ console.warn(error); }
+      return (count || 0) + 1;
+    }
+
+    async function uploadAvatar(newId, file){
+      if(!file) return null;
+      if(file.size > 2*1024*1024) { alert('El archivo supera 2 MB'); return null; }
+      var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      var path = newId + '/' + Date.now() + '_' + safeName;
+      var up = await supabaseClient.storage.from('socios').upload(path, file, { upsert: true });
+      if(up.error){ alert('Error subiendo imagen: '+up.error.message); return null; }
+      var pub = supabaseClient.storage.from('socios').getPublicUrl(path);
+      return pub && pub.data && pub.data.publicUrl ? pub.data.publicUrl : null;
     }
 
     socioForm.addEventListener('submit', async function(e){
       e.preventDefault();
       if(!supabaseClient) return alert('Cliente Supabase no disponible');
-      var empresa=socioForm.empresa.value.trim();
-      var titular=socioForm.titular.value.trim();
+      if(!currentCat) return alert('Selecciona una categoría primero');
+
+      var empresa   = socioForm.empresa.value.trim();
+      var titular   = socioForm.titular.value.trim();
+      var telefono  = socioForm.telefono.value.trim();
+      var direccion = socioForm.direccion.value.trim();
+      var balance   = socioForm.balance.value==='' ? null : Number(socioForm.balance.value);
+      var card_color= socioForm.card_color.value || null;
+      var file      = socioForm.avatar.files[0];
+
       if(!empresa || !titular) return alert('Empresa y Titular son obligatorios');
-      var telefono=socioForm.telefono.value.trim();
-      var direccion=socioForm.direccion.value.trim();
 
       let newId = socioEditId;
+
       if(socioEditId){
-        var {error} = await supabaseClient.from('socios').update({empresa,titular,telefono,direccion}).eq('id', socioEditId);
-        if(error) return alert(error.message);
+        var up1 = await supabaseClient.from('socios').update({empresa,titular,telefono,direccion,balance,card_color}).eq('id', socioEditId);
+        if(up1.error) return alert(up1.error.message);
       } else {
-        var ins = await supabaseClient.from('socios').insert([{categoria_id: currentCat, empresa, titular, telefono, direccion}]).select('id').single();
+        var orden = await nextOrdenForCategory();
+        var ins = await supabaseClient.from('socios').insert([{categoria_id: currentCat, empresa, titular, telefono, direccion, balance, card_color, orden}]).select('id').single();
         if(ins.error) return alert(ins.error.message);
         newId = ins.data.id;
       }
 
-      // subir imagen si adjunta
-      var file = socioForm.avatar.files[0];
       if(file){
-        if(file.size > 2*1024*1024) return alert('El archivo supera 2 MB');
-        var path = newId + '/' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-        var up = await supabaseClient.storage.from('socios').upload(path, file, {upsert:true});
-        if(up.error){ alert('Error subiendo imagen: '+up.error.message); }
-        else {
-          var pub = supabaseClient.storage.from('socios').getPublicUrl(path);
-          var url = pub && pub.data && pub.data.publicUrl;
-          if(url){ await supabaseClient.from('socios').update({avatar_url:url}).eq('id', newId); }
+        var url = await uploadAvatar(newId, file);
+        if(url){
+          await supabaseClient.from('socios').update({avatar_url:url}).eq('id', newId);
         }
       }
 
@@ -500,6 +620,28 @@
       if(error) return alert(error.message);
       renderSocios();
     }
+
+    /* ====== Arranque ====== */
+    function initHash(){
+      setActive((location.hash||'#socios').slice(1));
+    }
+    window.addEventListener('hashchange', initHash);
+
+    function openSociosByHashIfNeeded(){
+      // Si ya estábamos en socios al cargar el cliente, trae categorías
+      if((location.hash||'#socios').slice(1)==='socios') loadCategorias();
+    }
+
+    function onSupabaseReady(cb){
+      if(supabaseClient) cb();
+      else {
+        var t=setInterval(function(){
+          if(supabaseClient){ clearInterval(t); cb(); }
+        }, 100);
+      }
+    }
+
+    onSupabaseReady(openSociosByHashIfNeeded);
   </script>
 </body>
 </html>
