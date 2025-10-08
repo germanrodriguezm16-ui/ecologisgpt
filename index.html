@@ -6,31 +6,46 @@
   <title>Ecologist-GPT · Panel</title>
   <style>
     :root{
-      --bg:#0b0f14; --panel:#0f1620; --card:#121a26; --text:#e6edf3; --muted:#9fb0c2; --primary:#3ba55d; --border:#223044;
+      --bg:#0b0f14; --panel:#0f1620; --card:#121a26; --text:#e6edf3;
+      --muted:#9fb0c2; --primary:#3ba55d; --border:#223044; --danger:#d9534f;
     }
     *{box-sizing:border-box}
-    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--text);}
-    .layout{display:grid; grid-template-columns: 260px 1fr; min-height:100dvh;}
+    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--text)}
+    .layout{display:grid; grid-template-columns:260px 1fr; min-height:100dvh}
     aside{background:var(--panel); border-right:1px solid var(--border); padding:16px; position:sticky; top:0; height:100dvh}
-    .brand{display:flex; gap:10px; align-items:center; margin-bottom:18px;}
-    .brand .logo{width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#2b8a3e,var(--primary)); display:grid; place-items:center; font-weight:700;}
-    .brand h1{font-size:16px; margin:0;}
+    .brand{display:flex; gap:10px; align-items:center; margin-bottom:18px}
+    .logo{width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#2b8a3e,var(--primary)); display:grid; place-items:center; font-weight:700}
+    .brand h1{font-size:16px; margin:0}
     .muted{color:var(--muted); font-size:12px}
     nav{display:flex; flex-direction:column; gap:6px; margin-top:12px}
     .nav-btn{appearance:none; border:1px solid var(--border); background:transparent; color:var(--text);
       text-align:left; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:14px}
     .nav-btn.active{background:var(--card); border-color:#2a3a52}
-    main{padding:24px; }
-    .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px}
+    main{padding:24px}
+    .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:12px; flex-wrap:wrap}
     .title{font-size:18px; font-weight:700}
-    .search{display:flex; gap:8px; align-items:center}
-    input[type="search"]{background:var(--card); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:10px; width:260px}
+    .btn{appearance:none; border:1px solid var(--border); background:var(--card); color:var(--text); padding:10px 12px; border-radius:10px; cursor:pointer}
+    .btn.primary{background:var(--primary); border-color:#2b8a3e; color:#0a140d; font-weight:700}
     .grid{display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
-    .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px}
-    .card h3{margin:0 0 8px 0; font-size:15px}
-    .pill{display:inline-block; padding:4px 8px; border-radius:100px; border:1px solid var(--border); font-size:12px; color:var(--muted)}
+    .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; position:relative; overflow:hidden}
+    .card .row{display:flex; justify-content:space-between; gap:8px; align-items:flex-start}
+    .chip{display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid var(--border); font-size:12px; color:var(--muted)}
+    .color-dot{width:12px; height:12px; border-radius:999px; display:inline-block; margin-right:6px; border:1px solid #0005}
+    .actions{display:flex; gap:8px}
+    .icon-btn{background:transparent; border:1px solid var(--border); border-radius:10px; width:34px; height:34px; display:grid; place-items:center; cursor:pointer}
+    .icon{width:18px; height:18px; display:block}
     .footer{margin-top:20px; color:var(--muted); font-size:12px}
-    @media (max-width:900px){ .layout{grid-template-columns: 1fr} aside{position:static; height:auto} }
+    input[type="text"], input[type="number"], input[type="email"], input[type="color"]{
+      background:var(--card); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:10px; width:100%
+    }
+    select{background:var(--card); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:10px}
+    /* Modal */
+    .backdrop{position:fixed; inset:0; background:rgb(0 0 0 / .5); display:none; align-items:center; justify-content:center; padding:16px; z-index:50}
+    .modal{background:var(--card); border:1px solid var(--border); border-radius:16px; max-width:520px; width:100%; padding:16px}
+    .modal h3{margin:0 0 12px 0}
+    .modal .grid2{display:grid; grid-template-columns:1fr 140px; gap:12px}
+    .modal .footer{display:flex; justify-content:flex-end; gap:10px; margin-top:12px}
+    @media (max-width:900px){ .layout{grid-template-columns:1fr} aside{position:static; height:auto} .modal .grid2{grid-template-columns:1fr} }
     a{color:inherit; text-decoration:none}
   </style>
 </head>
@@ -45,107 +60,192 @@
         </div>
       </div>
       <nav id="nav">
-        <!-- Orden pedido: Pedidos, Seguimiento, Clientes, Inventario, Devoluciones, Transacciones, Socios -->
         <button class="nav-btn" data-view="pedidos">🧾 Pedidos</button>
         <button class="nav-btn" data-view="seguimiento">📍 Seguimiento</button>
         <button class="nav-btn" data-view="clientes">👥 Clientes</button>
         <button class="nav-btn" data-view="inventario">📦 Inventario</button>
-        <button class="nav-btn" data-view="devoluciones">↩️ Devoluciones</button>
+        <button class="nav-btn" data-view="devoluciones">↩ Devoluciones</button>
         <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
-        <button class="nav-btn" data-view="socios">🤝 Socios</button>
+        <button class="nav-btn active" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="footer">v0.1 · interfaz base lista para conectar a Supabase</div>
+      <div class="footer">v0.3 · Categorías de socios conectadas a Supabase</div>
     </aside>
 
     <main>
       <div class="topbar">
-        <div class="title" id="title">Pedidos</div>
-        <div class="search"><input type="search" placeholder="Buscar…" id="search" /></div>
+        <div class="title" id="title">Socios</div>
+        <div class="actions">
+          <button class="btn primary" id="btnNuevaCat">Crear categoría de socios</button>
+        </div>
       </div>
 
-      <!-- Contenedor donde cargan las vistas -->
-      <div id="view"></div>
+      <div id="view">
+        <div class="grid" id="gridCategorias"></div>
+      </div>
     </main>
   </div>
 
+  <!-- Modal Crear/Editar Categoría -->
+  <div class="backdrop" id="modalCat">
+    <div class="modal">
+      <h3 id="modalTitle">Nueva categoría</h3>
+      <form id="formCat">
+        <div class="grid2">
+          <div>
+            <label>Nombre</label>
+            <input name="nombre" type="text" placeholder="Ej: Proveedores" required />
+          </div>
+          <div>
+            <label>Color</label>
+            <input name="color" type="color" value="#3ba55d" />
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <label>Balance (placeholder)</label>
+          <input name="balance" type="number" step="0.01" value="0" />
+          <div class="muted" style="margin-top:6px">Más adelante este valor se calculará; por ahora es editable.</div>
+        </div>
+        <div class="modal footer">
+          <button type="button" class="btn" id="btnCancelCat">Cancelar</button>
+          <button type="submit" class="btn primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
-    // Vistas mínimas (placeholders). Luego las conectamos a Supabase.
-    const VIEWS = {
-      pedidos: `
-        <div class="grid">
-          <div class="card">
-            <h3>Nuevos</h3>
-            <div class="pill">0 pedidos</div>
-          </div>
-          <div class="card">
-            <h3>En preparación</h3>
-            <div class="pill">0 pedidos</div>
-          </div>
-          <div class="card">
-            <h3>Despachados</h3>
-            <div class="pill">0 pedidos</div>
-          </div>
-          <div class="card">
-            <h3>Completados (24h)</h3>
-            <div class="pill">0 pedidos</div>
-          </div>
-        </div>
-      `,
-      seguimiento: `
-        <div class="card"><h3>Mapa / Estado</h3><p class="muted">Aquí verás el estado por etapas: recibido → preparado → enviado → entregado.</p></div>
-        <div class="card"><h3>Alertas</h3><p class="muted">Retrasos, reintentos de entrega y excepciones.</p></div>
-      `,
-      clientes: `
-        <div class="card"><h3>Listado de clientes</h3><p class="muted">Tabla con búsqueda, filtros y acciones (ver, editar, bloquear).</p></div>
-        <div class="card"><h3>Segmentos</h3><p class="muted">VIP, recurrentes, recientes, devoluciones.</p></div>
-      `,
-      inventario: `
-        <div class="grid">
-          <div class="card"><h3>Stock bajo</h3><p class="muted">Productos con menos del 10%.</p></div>
-          <div class="card"><h3>Reposiciones</h3><p class="muted">Órdenes a proveedor pendientes.</p></div>
-          <div class="card"><h3>Kits / combos</h3><p class="muted">Composiciones y costos.</p></div>
-        </div>
-      `,
-      devoluciones: `
-        <div class="card"><h3>Solicitudes abiertas</h3><p class="muted">RMA pendientes de aprobación.</p></div>
-        <div class="card"><h3>Motivos frecuentes</h3><p class="muted">Talla, falla, cambio de opinión.</p></div>
-      `,
-      transacciones: `
-        <div class="grid">
-          <div class="card"><h3>Cobros</h3><p class="muted">Pagos recibidos hoy.</p></div>
-          <div class="card"><h3>Reembolsos</h3><p class="muted">Devoluciones procesadas.</p></div>
-          <div class="card"><h3>Pasarela</h3><p class="muted">Estado de integración (Stripe/Mercado Pago).</p></div>
-        </div>
-      `,
-      socios: `
-        <div class="card"><h3>Socios</h3><p class="muted">Listado y participación. (Luego conectamos a tabla <code>socios</code>).</p></div>
-        <div class="card"><h3>Distribución utilidades</h3><p class="muted">Resumen mensual.</p></div>
-      `,
-    };
+    /************* 1) Configurar Supabase (pega tus valores) *************/
+    // REEMPLAZA estos dos valores por los de tu proyecto (Settings → API)
+    const SUPABASE_URL = "https://qsskzmzplqgxdhwspqeo.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzc2t6bXpwbHFneGRod3NwcWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4OTYwMTMsImV4cCI6MjA3NTQ3MjAxM30.N3Gq1toKmvqRnHsNjQIB_ZNdtN908xvCn2Z0UF2NqIg";
 
-    const title = document.getElementById('title');
-    const view = document.getElementById('view');
-    const nav = document.getElementById('nav');
+    /************* 2) Cliente Supabase *************/
+    // Cargamos el SDK ligero desde CDN para no complicar tu flujo
+    ;(function addSupabase(){
+      const s=document.createElement('script');
+      s.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js";
+      s.onload=()=>initApp();
+      document.head.appendChild(s);
+    })();
 
-    function setActive(tab){
-      [...nav.querySelectorAll('.nav-btn')].forEach(b=>{
-        b.classList.toggle('active', b.dataset.view===tab);
-      });
-      title.textContent = tab.charAt(0).toUpperCase()+tab.slice(1);
-      view.innerHTML = VIEWS[tab] || '<div class="card">Sin contenido.</div>';
-      // Guarda el hash para enlaces directos
-      location.hash = tab;
+    let supabaseClient;
+    let editId = null;
+
+    function initApp(){
+      if(!SUPABASE_URL.startsWith('http')){ alert('Falta configurar SUPABASE_URL y ANON_KEY en index.html'); return; }
+      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      bindUI();
+      loadCategorias();
     }
 
-    nav.addEventListener('click', (e)=>{
-      const btn = e.target.closest('.nav-btn');
-      if(!btn) return;
-      setActive(btn.dataset.view);
-    });
+    /************* 3) UI básica *************/
+    const modal = document.getElementById('modalCat');
+    const form = document.getElementById('formCat');
+    const grid = document.getElementById('gridCategorias');
+    document.getElementById('btnNuevaCat').addEventListener('click', ()=>openModal());
+    document.getElementById('btnCancelCat').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
+    form.addEventListener('submit', onSave);
 
-    // Inicialización: usa el hash si existe, si no, "pedidos"
-    const initial = (location.hash || '#pedidos').replace('#','');
-    setActive(initial);
+    function bindUI(){ /* reservado por si añadimos más cosas */ }
+    function openModal(cat=null){
+      editId = cat?.id || null;
+      form.nombre.value = cat?.nombre || '';
+      form.color.value = cat?.color || '#3ba55d';
+      form.balance.value = cat?.balance ?? 0;
+      document.getElementById('modalTitle').textContent = editId ? 'Editar categoría' : 'Nueva categoría';
+      modal.style.display='flex';
+    }
+    function closeModal(){ modal.style.display='none'; editId=null; }
+
+    /************* 4) CRUD Supabase *************/
+    async function loadCategorias(){
+      grid.innerHTML = '<div class="muted">Cargando categorías…</div>';
+      const { data, error } = await supabaseClient
+        .from('categorias_socios')
+        .select('*')
+        .order('created_at', { ascending:false });
+
+      if(error){ grid.innerHTML = <div class="muted">Error: ${error.message}</div>; return; }
+      renderCards(data||[]);
+    }
+
+    function svg(icon){ // íconos ligeros (editar / borrar)
+      if(icon==='edit') return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" stroke-width="1.5"/></svg>';
+      if(icon==='trash') return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V4h6v3m-8 3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+      return '';
+    }
+
+    function renderCards(rows){
+      if(rows.length===0){
+        grid.innerHTML = '<div class="muted">Aún no hay categorías. Crea la primera con el botón de arriba.</div>';
+        return;
+      }
+      grid.innerHTML = rows.map(r=>`
+        <div class="card" data-id="${r.id}">
+          <div class="row">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; font-weight:700">
+                <span class="color-dot" style="background:${r.color||'#3ba55d'}"></span>
+                ${esc(r.nombre)}
+              </div>
+              <div class="muted" style="margin-top:6px">Balance: <span style="font-variant-numeric: tabular-nums">$${fmt(r.balance||0)}</span></div>
+            </div>
+            <div class="actions">
+              <button class="icon-btn" title="Editar" data-edit="${r.id}">${svg('edit')}</button>
+              <button class="icon-btn" title="Eliminar" data-del="${r.id}">${svg('trash')}</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      // Bind acciones
+      grid.querySelectorAll('[data-edit]').forEach(b=>{
+        const id=b.getAttribute('data-edit');
+        b.addEventListener('click', ()=>{
+          const cat = rows.find(x=>x.id===id);
+          openModal(cat);
+        });
+      });
+      grid.querySelectorAll('[data-del]').forEach(b=>{
+        const id=b.getAttribute('data-del');
+        b.addEventListener('click', ()=> deleteCat(id));
+      });
+    }
+
+    async function onSave(e){
+      e.preventDefault();
+      const nombre = form.nombre.value.trim();
+      const color  = form.color.value || '#3ba55d';
+      const balance = parseFloat(form.balance.value||'0');
+
+      if(!nombre){ alert('El nombre es obligatorio'); return; }
+      if(editId){
+        const { error } = await supabaseClient
+          .from('categorias_socios')
+          .update({ nombre, color, balance })
+          .eq('id', editId);
+        if(error){ alert('Error al actualizar: '+error.message); return; }
+      }else{
+        const { error } = await supabaseClient
+          .from('categorias_socios')
+          .insert([{ nombre, color, balance }]);
+        if(error){ alert('Error al crear: '+error.message); return; }
+      }
+      closeModal();
+      loadCategorias();
+    }
+
+    async function deleteCat(id){
+      if(!confirm('¿Eliminar esta categoría?')) return;
+      const { error } = await supabaseClient.from('categorias_socios').delete().eq('id', id);
+      if(error){ alert('Error al eliminar: '+error.message); return; }
+      loadCategorias();
+    }
+
+    /************* Utilidades *************/
+    function esc(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+    function fmt(n){ return Number(n).toLocaleString('es-CO', { maximumFractionDigits: 2 }); }
   </script>
 </body>
 </html>
