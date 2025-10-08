@@ -8,6 +8,7 @@
     :root{
       --bg:#0b0f14; --panel:#0f1620; --card:#121a26; --text:#e6edf3;
       --muted:#9fb0c2; --primary:#3ba55d; --border:#223044; --danger:#d9534f;
+      --blue:#1e76ff; --red:#e4504d;
     }
     *{box-sizing:border-box}
     body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--text)}
@@ -27,18 +28,34 @@
     .btn{appearance:none; border:1px solid var(--border); background:var(--card); color:var(--text); padding:10px 12px; border-radius:10px; cursor:pointer}
     .btn.primary{background:var(--primary); border-color:#2b8a3e; color:#0a140d; font-weight:700}
     .grid{display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
-    .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px}
+    .card{
+      background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      will-change: transform, box-shadow;
+    }
+    /* 3) Hover “flotar” */
+    .card:hover{ transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0,0,0,.25); }
+
     .row{display:flex; justify-content:space-between; gap:8px; align-items:flex-start}
-    .chip{display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid var(--border); font-size:12px; color:var(--muted)}
     .color-dot{width:12px; height:12px; border-radius:999px; display:inline-block; margin-right:6px; border:1px solid #0005}
     .actions{display:flex; gap:8px}
-    .icon-btn{background:transparent; border:1px solid var(--border); border-radius:10px; width:34px; height:34px; display:grid; place-items:center; cursor:pointer}
+    .icon-btn{
+      background:transparent; border:1px solid var(--border); border-radius:10px;
+      width:34px; height:34px; display:grid; place-items:center; cursor:pointer; transition:filter .15s ease,opacity .15s ease
+    }
     .icon{width:18px; height:18px; display:block}
+    .icon-btn:hover{ filter:brightness(1.05) }
+
+    /* 1) Botones con color propio */
+    .icon-btn.edit{ background:var(--blue); border-color:#1357c2; color:#fff }
+    .icon-btn.delete{ background:var(--red);  border-color:#b23a37; color:#fff }
+
     .empty, .error, .loading{color:var(--muted); padding:16px}
     .debug{position:fixed; right:12px; top:12px; background:#09111a; border:1px solid var(--border); padding:8px 10px; border-radius:10px; font-size:12px; color:var(--muted); z-index:99}
     input[type="text"], input[type="number"], input[type="email"], input[type="color"]{
       background:var(--card); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:10px; width:100%
     }
+
     /* Modal */
     .backdrop{position:fixed; inset:0; background:rgb(0 0 0 / .5); display:none; align-items:center; justify-content:center; padding:16px; z-index:50}
     .modal{background:var(--card); border:1px solid var(--border); border-radius:16px; max-width:520px; width:100%; padding:16px}
@@ -47,6 +64,10 @@
     .modal .footer{display:flex; justify-content:flex-end; gap:10px; margin-top:12px}
     @media (max-width:900px){ .layout{grid-template-columns:1fr} aside{position:static; height:auto} .modal .grid2{grid-template-columns:1fr} }
     a{color:inherit; text-decoration:none}
+
+    /* 2) Drag & drop: estado visual */
+    .card.drag-over{ outline:2px dashed rgba(255,255,255,.25); outline-offset:2px }
+    .card.dragging{ opacity:.6 }
   </style>
 
   <!-- Config con tus claves -->
@@ -84,7 +105,7 @@
         <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
         <button class="nav-btn" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="muted" style="margin-top:10px">v0.7 · fondo de tarjeta con tu color</div>
+      <div class="muted" style="margin-top:10px">v0.8 · contraste + drag&drop + hover</div>
     </aside>
 
     <main>
@@ -132,7 +153,7 @@
     function esc(s){ return String(s).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
     function fmt(n){ return Number(n).toLocaleString('es-CO',{maximumFractionDigits:2}); }
 
-    /************* helper DOM sin strings *************/
+    /************* helper DOM *************/
     function el(tag, attrs, children){
       var node=document.createElement(tag), k;
       attrs=attrs||{};
@@ -163,16 +184,19 @@
       if (isNaN(num)) return {r:0,g:0,b:0};
       return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 };
     }
-    function relLum(c){ // sRGB luminancia
+    function relLum(c){
       function ch(v){ v/=255; return v<=0.03928? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }
       return 0.2126*ch(c.r) + 0.7152*ch(c.g) + 0.0722*ch(c.b);
     }
     function contrastColor(bgHex){
       var rgb = hexToRgb(bgHex), L = relLum(rgb);
-      return L > 0.5 ? '#000000' : '#ffffff'; // texto negro si es claro, blanco si es oscuro
+      return L > 0.5 ? '#000000' : '#ffffff';
+    }
+    function mutedFor(bgHex){
+      var txt = contrastColor(bgHex);
+      return txt==='#000000' ? 'rgba(0,0,0,.72)' : 'rgba(255,255,255,.72)';
     }
     function borderOn(bgHex){
-      // borde sutil según claridad
       var rgb = hexToRgb(bgHex), L = relLum(rgb);
       return L > 0.5 ? 'rgba(0,0,0,.25)' : 'rgba(255,255,255,.25)';
     }
@@ -257,33 +281,68 @@
       if(supabaseClient){ loadCategorias(); }
     }
 
+    /* construir card con:
+       - color de fondo elegido
+       - contraste de título y balance
+       - botones edit/delete con colores propios
+       - drag & drop nativo  */
     function buildCard(row){
       var bg = row.color || '#3ba55d';
       var txt = contrastColor(bg);
+      var muted = mutedFor(bg);
       var brd = borderOn(bg);
 
-      var card = el('div',{class:'card', style:{ background:bg, borderColor:brd, color:txt }},[]);
+      var card = el('div',{
+        class:'card', draggable:true,
+        style:{ background:bg, borderColor:brd, color:txt }
+      },[]);
+      card.setAttribute('data-id', String(row.id||''));
+
       var top = el('div',{class:'row'},[]);
       var left = el('div',null,[]);
       var titleWrap = el('div',{style:{display:'flex',alignItems:'center',gap:'8px',fontWeight:'700'}},[]);
       var dot = el('span',{class:'color-dot',style:{background:bg,borderColor:'rgba(0,0,0,.25)'}},[]);
       var title = el('span',null,[String(row.nombre||'—')]);
       titleWrap.appendChild(dot); titleWrap.appendChild(title);
-      var bal = el('div',{class:'muted',style:{marginTop:'6px', color: txt==='\\#000000' ? 'rgba(0,0,0,.7)' : 'rgba(255,255,255,.7)'}},['Balance: $'+fmt(row.balance||0)]);
+
+      var bal = el('div',{style:{marginTop:'6px', color: muted}},['Balance: $'+fmt(row.balance||0)]);
       left.appendChild(titleWrap); left.appendChild(bal);
 
       var actions = el('div',{class:'actions'},[]);
-      var btnE = el('button',{class:'icon-btn',title:'Editar',style:{color:txt,borderColor:brd}},[]);
+      var btnE = el('button',{class:'icon-btn edit',title:'Editar'},[]);
       btnE.innerHTML = svg('edit');
       btnE.setAttribute('data-edit', String(row.id));
-      var btnD = el('button',{class:'icon-btn',title:'Eliminar',style:{color:txt,borderColor:brd}},[]);
+      var btnD = el('button',{class:'icon-btn delete',title:'Eliminar'},[]);
       btnD.innerHTML = svg('trash');
       btnD.setAttribute('data-del', String(row.id));
       actions.appendChild(btnE); actions.appendChild(btnD);
 
       top.appendChild(left); top.appendChild(actions);
       card.appendChild(top);
-      card.setAttribute('data-id', String(row.id||''));
+
+      // 2) Drag & drop
+      card.addEventListener('dragstart', function(ev){
+        ev.dataTransfer.setData('text/plain', String(row.id));
+        card.classList.add('dragging');
+      });
+      card.addEventListener('dragend', function(){ card.classList.remove('dragging'); $all('.card.drag-over').forEach(function(n){ n.classList.remove('drag-over'); }); });
+      card.addEventListener('dragover', function(ev){ ev.preventDefault(); card.classList.add('drag-over'); });
+      card.addEventListener('dragleave', function(){ card.classList.remove('drag-over'); });
+      card.addEventListener('drop', function(ev){
+        ev.preventDefault();
+        var fromId = ev.dataTransfer.getData('text/plain');
+        var toId   = card.getAttribute('data-id');
+        if(!fromId || !toId || fromId===toId) return;
+
+        var grid = document.getElementById('socGrid');
+        var fromEl = grid.querySelector('[data-id="'+fromId+'"]');
+        var toEl = grid.querySelector('[data-id="'+toId+'"]');
+        if(!fromEl || !toEl) return;
+
+        grid.insertBefore(fromEl, toEl);     // mueve en el DOM
+        card.classList.remove('drag-over');
+        saveOrder();                          // persiste en Supabase
+      });
 
       return card;
     }
@@ -316,9 +375,14 @@
       grid.innerHTML = '<div class="loading">Cargando categorías…</div>';
       debug('cargando…');
 
-      var resp = await supabaseClient.from('categorias_socios').select('*').order('created_at',{ascending:false});
-      var data = resp.data, error = resp.error;
+      // si existe columna orden, ordenamos por ella primero
+      var resp = await supabaseClient
+        .from('categorias_socios')
+        .select('*')
+        .order('orden', { ascending:true, nullsFirst:true })
+        .order('created_at', { ascending:false });
 
+      var data = resp.data, error = resp.error;
       if(error){
         grid.innerHTML = '<div class="error">Error: '+esc(error.message)+'</div>';
         debug('error: '+error.message);
@@ -326,6 +390,27 @@
       }
       debug('ok: '+data.length+' filas');
       renderCards(data||[]);
+    }
+
+    // Guardar nuevo orden según posición en el DOM
+    async function saveOrder(){
+      var grid = document.getElementById('socGrid'); if(!grid) return;
+      var cards = $all('.card', grid);
+      var updates = [];
+      cards.forEach(function(c, idx){
+        var id = c.getAttribute('data-id');
+        updates.push({ id:id, orden: idx+1 });
+      });
+
+      try{
+        // Actualizamos en paralelo
+        await Promise.all(updates.map(function(u){
+          return supabaseClient.from('categorias_socios').update({ orden:u.orden }).eq('id', u.id);
+        }));
+        debug('orden guardado');
+      }catch(e){
+        debug('error guardando orden');
+      }
     }
 
     // Modal
