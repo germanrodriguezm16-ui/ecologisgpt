@@ -107,7 +107,7 @@
         <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
         <button class="nav-btn" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="muted" style="margin-top:10px">v0.9 · socios por categoría</div>
+      <div class="muted" style="margin-top:10px">v1.0 · socios por categoría</div>
     </aside>
 
     <main>
@@ -119,7 +119,7 @@
     </main>
   </div>
 
-  <!-- Modal Categoría -->
+  <!-- Modal Categoría (crear/editar) -->
   <div class="backdrop" id="modalCat">
     <div class="modal">
       <h3 id="modalTitle">Nueva categoría</h3>
@@ -209,10 +209,13 @@
 
     /* Navegación básica y vistas */
     var titleEl = $('#title'), viewEl = $('#view'), navEl = $('#nav'), topActions = $('#topActions');
-    var currentCat=null, currentCatName=''; // para subvista de socios
+    var currentCat=null, currentCatName='';
     var prefView = localStorage.getItem('sociosViewMode') || 'cards'; // 'cards' | 'list'
-    var sortableInstance = null; // para drag & drop
-    var cachedRows = []; // último fetch de socios (para rebind rápido)
+    var sortableInstance = null; // drag & drop socios
+    var cachedRows = []; // últimos socios consultados
+
+    // Estado para edición de categoría
+    var catEditId = null;
 
     var VIEWS = {
       pedidos: function(){ return demoCard('Pedidos'); },
@@ -224,8 +227,14 @@
       socios: function(){ // categorías
         var root = document.createElement('div');
         root.id='sociosRoot';
-        root.appendChild(el('div',{id:'socTop',class:'actions-inline',style:{marginBottom:'12px'}}));
+        root.appendChild(el('div',{id:'socTop',class:'actions-inline',style:{marginBottom:'12px'}},[
+          el('button',{class:'btn primary', id:'btnNuevaCat'},['Crear categoría de socios'])
+        ]));
         root.appendChild(el('div',{id:'socGrid',class:'grid'}));
+        // bind creación
+        setTimeout(function(){
+          var btn = $('#btnNuevaCat'); if(btn) btn.addEventListener('click', openModalCatCreate);
+        },0);
         return root;
       }
     };
@@ -284,26 +293,59 @@
     function mutedFor(bg){ return contrastColor(bg)==='#000'?'rgba(0,0,0,.72)':'rgba(255,255,255,.72)'; }
     function borderOn(bg){ var L=relLum(hexToRgb(bg)); return L>0.5?'rgba(0,0,0,.25)':'rgba(255,255,255,.25)'; }
 
-    /* ====== CATEGORÍAS (cards clicables) ====== */
+    /* ====== CATEGORÍAS (cards clicables + editar/eliminar + drag) ====== */
     function initSociosView(){
-      topActions.innerHTML = '<button class="btn primary" id="btnNuevaCat">Crear categoría de socios</button>';
-      $('#btnNuevaCat').addEventListener('click', openModalCat);
       loadCategorias();
     }
 
-    function openModalCat(){ $('#modalCat').style.display='flex'; }
-    $('#btnCancelCat').addEventListener('click', function(){ $('#modalCat').style.display='none'; });
+    function openModalCatCreate(){
+      catEditId = null;
+      $('#modalTitle').textContent = 'Nueva categoría';
+      var f = $('#formCat');
+      f.nombre.value = '';
+      f.color.value = '#3ba55d';
+      f.balance.value = 0;
+      $('#modalCat').style.display='flex';
+    }
+
+    function openModalCatEdit(cat){
+      catEditId = cat.id;
+      $('#modalTitle').textContent = 'Editar categoría';
+      var f = $('#formCat');
+      f.nombre.value = cat.nombre || '';
+      f.color.value = cat.color || '#3ba55d';
+      f.balance.value = cat.balance != null ? cat.balance : 0;
+      $('#modalCat').style.display='flex';
+    }
+
+    $('#btnCancelCat').addEventListener('click', function(){ $('#modalCat').style.display='none'; catEditId=null; });
 
     $('#formCat').addEventListener('submit', async function(e){
       e.preventDefault();
       var f=e.target;
       var nombre=f.nombre.value.trim(), color=f.color.value||'#3ba55d', balance=parseFloat(f.balance.value||'0');
       if(!nombre) return alert('Nombre obligatorio');
-      var {error} = await supabaseClient.from('categorias_socios').insert([{nombre,color,balance}]);
-      if(error) return alert(error.message);
-      $('#modalCat').style.display='none';
+      if(catEditId){
+        var { error } = await supabaseClient.from('categorias_socios').update({ nombre, color, balance }).eq('id', catEditId);
+        if(error) return alert(error.message);
+      } else {
+        var { error } = await supabaseClient.from('categorias_socios').insert([{ nombre, color, balance }]);
+        if(error) return alert(error.message);
+      }
+      $('#modalCat').style.display='none'; catEditId=null;
       loadCategorias();
     });
+
+    async function deleteCategoria(cat){
+      if(!confirm('¿Eliminar la categoría "'+(cat.nombre||cat.id)+'"?')) return;
+      // Opcional: impedir borrar si hay socios asociados. Aquí simplemente intenta borrar.
+      var { error } = await supabaseClient.from('categorias_socios').delete().eq('id', cat.id);
+      if(error) return alert(error.message);
+      loadCategorias();
+    }
+
+    function pencil(){return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" stroke-width="1.5"/></svg>';}
+    function trash(){return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V4h6v3m-8 3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';}
 
     function buildCatCard(row){
       var bg=row.color||'#3ba55d', txt=contrastColor(bg), muted=mutedFor(bg), brd=borderOn(bg);
@@ -320,34 +362,76 @@
       actions.appendChild(ebtn); actions.appendChild(dbtn);
       top.appendChild(left); top.appendChild(actions); card.appendChild(top);
 
+      // Click sobre card abre socios; las acciones no deben propagar
       card.addEventListener('click', function(ev){
-        if(ev.target.closest('.icon-btn')) return; // no abrir si se clickeó acción
+        if(ev.target.closest('.icon-btn')) return; // si fue botón, no abrir
         openSociosList(row.id, row.nombre);
       });
+      ebtn.addEventListener('click', function(ev){ ev.stopPropagation(); openModalCatEdit(row); });
+      dbtn.addEventListener('click', function(ev){ ev.stopPropagation(); deleteCategoria(row); });
 
       return card;
     }
 
     async function loadCategorias(){
       var grid=$('#socGrid'); grid.innerHTML='<div class="loading">Cargando categorías…</div>';
-      var {data,error} = await supabaseClient.from('categorias_socios').select('*').order('orden',{ascending:true,nullsFirst:true}).order('created_at',{ascending:false});
+      var {data,error} = await supabaseClient
+        .from('categorias_socios')
+        .select('*')
+        .order('orden',{ascending:true,nullsFirst:true})
+        .order('created_at',{ascending:false});
       if(error){ grid.innerHTML='<div class="error">'+esc(error.message)+'</div>'; return; }
-      grid.innerHTML=''; (data||[]).forEach(function(r){ grid.appendChild(buildCatCard(r)); });
+      grid.innerHTML='';
+      (data||[]).forEach(function(r){ grid.appendChild(buildCatCard(r)); });
+      initDragCats(); // habilita drag & drop de categorías
     }
 
-    function pencil(){return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" stroke-width="1.5"/></svg>';}
-    function trash(){return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V4h6v3m-8 3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';}
+    // === DRAG & DROP: Categorías ===
+    function readOrderFromCats() {
+      var nodes = $all('#socGrid .card');
+      return nodes.map(function(n, idx) {
+        return { id: n.getAttribute('data-id'), orden: idx + 1 };
+      });
+    }
+
+    async function persistOrderCats(updates){
+      try{
+        await Promise.all(updates.map(function(u){
+          return supabaseClient.from('categorias_socios').update({ orden: u.orden }).eq('id', u.id);
+        }));
+      }catch(e){
+        console.error(e);
+        alert('No se pudo guardar el orden de categorías');
+      }
+    }
+
+    function initDragCats(){
+      var grid = $('#socGrid');
+      if(!grid) return;
+      if (grid._sortable) { grid._sortable.destroy(); }
+      grid._sortable = Sortable.create(grid, {
+        animation: 150,
+        draggable: '.card',
+        onEnd: async function(){
+          var updates = readOrderFromCats();
+          await persistOrderCats(updates);
+          loadCategorias();
+        }
+      });
+    }
 
     /* ====== SUBVISTA: LISTA DE SOCIOS POR CATEGORÍA ====== */
     function openSociosList(catId, catName){
       currentCat=catId; currentCatName=catName||'Socios';
       titleEl.textContent = 'Socios · '+currentCatName;
       viewEl.innerHTML='';
-      // top actions (incluye Volver, toggle y Crear socio)
+      // top actions (incluye Volver, buscador, toggle y Crear socio)
       var labelBtn = (currentCatName.toLowerCase()==='proveedores' ? 'Crear proveedor' : 'Crear socio');
       topActions.innerHTML = ''
         + '<button class="btn ghost" id="btnBack">← Volver a categorías</button>'
         + '<div class="actions-inline">'
+        + ' <input id="socioSearch" type="text" placeholder="Buscar socio…" '
+        + '    style="padding:10px 12px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;min-width:220px" />'
         + ' <button class="btn '+(prefView==='list'?'warn':'')+'" id="btnList">Lista</button>'
         + ' <button class="btn '+(prefView==='cards'?'warn':'')+'" id="btnCards">Tarjetas</button>'
         + ' <button class="btn primary" id="btnNewSocio">'+esc(labelBtn)+'</button>'
@@ -358,12 +442,18 @@
       $('#btnCards').addEventListener('click', function(){ prefView='cards'; localStorage.setItem('sociosViewMode','cards'); renderSocios(); this.classList.add('warn'); $('#btnList').classList.remove('warn'); });
       $('#btnNewSocio').addEventListener('click', function(){ openSocioModal(); });
 
+      var searchInput = $('#socioSearch');
+      if (searchInput) {
+        searchInput.addEventListener('input', function(){
+          applySocioFilter(this.value.trim().toLowerCase());
+        });
+      }
+
       viewEl.appendChild(el('div',{id:'socContent'},['Cargando…']));
       renderSocios(); // carga inicial
     }
 
     async function fetchSocios(){
-      // Orden principal por 'orden' asc, secundario por 'created_at' asc para estabilidad
       var q = supabaseClient.from('socios')
             .select('*')
             .eq('categoria_id', currentCat)
@@ -490,7 +580,7 @@
       return grid;
     }
 
-    /* ====== Drag & Drop (guardar orden) ====== */
+    /* ====== Drag & Drop (guardar orden de socios) ====== */
     function readOrderFromContainer(containerSelector, itemSelector){
       var nodes = $all(itemSelector, $(containerSelector));
       return nodes.map(function(n,idx){ return { id: n.getAttribute('data-id'), orden: idx+1 }; });
@@ -498,7 +588,6 @@
 
     async function persistOrder(updates){
       try{
-        // Guardar uno por uno para evitar problemas de RLS
         await Promise.all(updates.map(function(u){
           return supabaseClient.from('socios').update({orden: u.orden}).eq('id', u.id);
         }));
@@ -556,7 +645,6 @@
     }
 
     async function nextOrdenForCategory(){
-      // obtiene siguiente orden basándose en cantidad actual
       var {count, error} = await supabaseClient
         .from('socios')
         .select('*', { head: true, count: 'exact' })
@@ -628,7 +716,6 @@
     window.addEventListener('hashchange', initHash);
 
     function openSociosByHashIfNeeded(){
-      // Si ya estábamos en socios al cargar el cliente, trae categorías
       if((location.hash||'#socios').slice(1)==='socios') loadCategorias();
     }
 
@@ -642,6 +729,35 @@
     }
 
     onSupabaseReady(openSociosByHashIfNeeded);
+
+    /* ====== BÚSQUEDA LOCAL EN SOCIOS ====== */
+    function matchesSocioFilter(r, q){
+      if(!q) return true;
+      const fields = [
+        r.empresa || '',
+        r.titular || '',
+        r.telefono || '',
+        r.direccion || '',
+        (r.balance!=null? String(r.balance):'')
+      ].map(String);
+      return fields.some(v => v.toLowerCase().includes(q));
+    }
+
+    function applySocioFilter(q){
+      var filtered = (cachedRows||[]).filter(function(r){ return matchesSocioFilter(r, q); });
+      var cont = $('#socContent');
+      if(!filtered.length){
+        cont.innerHTML = '<div class="empty">Sin resultados para tu búsqueda.</div>';
+        return;
+      }
+      if(prefView==='list'){
+        cont.innerHTML=''; cont.appendChild(buildSociosTable(filtered));
+        initDragList();
+      }else{
+        cont.innerHTML=''; cont.appendChild(buildSociosCards(filtered));
+        initDragCards();
+      }
+    }
   </script>
 </body>
 </html>
