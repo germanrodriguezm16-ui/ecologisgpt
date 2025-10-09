@@ -1,28 +1,23 @@
+// app/core/router.js
 const listeners = new Set();
 
-export const router = {
-  current: null,
-  go(hash) {
-    if (location.hash !== hash) location.hash = hash;
-    window.dispatchEvent(new HashChangeEvent("hashchange"));
-  },
-  on(fn) { listeners.add(fn); return () => listeners.delete(fn); }
-};
-
-function parseHash() {
-  const h = location.hash.replace(/^#/, '');
+function parseHash(){
+  const h = (location.hash || '#/socios').replace(/^#\/?/, '');
   const parts = h.split('/').filter(Boolean);
   return { raw: h, parts };
 }
 
-function notify() {
+function notify(){
   const ctx = parseHash();
-  router.current = ctx;
-  for (const fn of listeners) try { fn(ctx); } catch(e){ console.error('[router] listener error', e); }
+  listeners.forEach(fn => { try{ fn(ctx); }catch(e){ console.error(e); } });
 }
 
+export const router = {
+  on(fn){ listeners.add(fn); },
+  off(fn){ listeners.delete(fn); },
+  go(path){ location.hash = path; },
+  current(){ return parseHash(); }
+};
+
 window.addEventListener('hashchange', notify);
-window.addEventListener('DOMContentLoaded', () => {
-  if (!location.hash) router.go('#/socios');
-  else notify();
-});
+document.addEventListener('DOMContentLoaded', notify);
