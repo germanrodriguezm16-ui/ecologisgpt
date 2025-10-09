@@ -13,7 +13,7 @@
     *{box-sizing:border-box}
     body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--text)}
     .layout{display:grid; grid-template-columns:260px 1fr; min-height:100dvh}
-    aside{background:var(--panel); border-right:1px solid var(--border); padding:16px; position:sticky; top:0; height:100dvh; overflow:auto}
+    aside{background:var(--panel); border-right:1px solid var(--border); padding:16px; position:sticky; top:0; height:100dvh}
     .brand{display:flex; gap:10px; align-items:center; margin-bottom:18px}
     .logo{width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#2b8a3e,var(--primary)); display:grid; place-items:center; font-weight:700}
     .brand h1{font-size:16px; margin:0}
@@ -31,29 +31,53 @@
     .btn.ghost{background:transparent}
     .btn.warn{background:var(--yellow); color:#1a1a1a; border-color:#c6a700}
     .grid{display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
-    .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px}
+    .card{
+      background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      will-change: transform, box-shadow;
+    }
+    .card:hover{ transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0,0,0,.25); }
     .row{display:flex; justify-content:space-between; gap:8px; align-items:flex-start}
-    .row-flex{display:flex; align-items:center; gap:10px}
-    .avatar{width:36px; height:36px; border-radius:12px; object-fit:cover; background:#0e1520; border:1px solid var(--border)}
-    .balance-big{font-size:22px; font-weight:800; margin-top:8px}
-    .mini-actions{display:flex; gap:6px}
-    .icon{width:18px;height:18px;display:block}
-    .icon-btn{background:transparent;border:1px solid var(--border);border-radius:10px;width:34px;height:34px;display:grid;place-items:center;cursor:pointer}
+    .color-dot{width:12px; height:12px; border-radius:999px; display:inline-block; margin-right:6px; border:1px solid #0005}
+    .actions{display:flex; gap:8px}
+    .icon-btn{
+      background:transparent; border:1px solid var(--border); border-radius:10px;
+      width:34px; height:34px; display:grid; place-items:center; cursor:pointer; transition:filter .15s ease,opacity .15s ease
+    }
+    .icon{width:18px; height:18px; display:block}
     .icon-btn.edit{ background:var(--blue); border-color:#1357c2; color:#fff }
     .icon-btn.delete{ background:var(--red);  border-color:#b23a37; color:#fff }
+
+    .empty, .error, .loading{color:var(--muted); padding:16px}
+    .debug{position:fixed; right:12px; top:12px; background:#09111a; border:1px solid var(--border); padding:8px 10px; border-radius:10px; font-size:12px; color:var(--muted); z-index:99}
+    input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="color"]{
+      background:var(--card); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:10px; width:100%
+    }
+    label{font-size:12px; color:var(--muted); display:block; margin-bottom:6px}
+
+    /* Modal */
+    .backdrop{position:fixed; inset:0; background:rgb(0 0 0 / .5); display:none; align-items:center; justify-content:center; padding:16px; z-index:50}
+    .modal{background:var(--card); border:1px solid var(--border); border-radius:16px; max-width:640px; width:100%; padding:16px}
+    .modal h3{margin:0 0 12px 0}
+    .modal .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+    .modal .footer{display:flex; justify-content:flex-end; gap:10px; margin-top:12px}
+    @media (max-width:900px){ .layout{grid-template-columns:1fr} aside{position:static; height:auto} .modal .grid2{grid-template-columns:1fr} }
+    a{color:inherit; text-decoration:none}
+
+    /* Socios list view */
     .list{width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden}
     .list thead th{font-size:12px; text-align:left; color:var(--muted); background:#0f1823; padding:10px 12px; border-bottom:1px solid var(--border)}
     .list tbody td{padding:12px; border-bottom:1px solid var(--border)}
-    .debug{position:fixed; right:12px; top:12px; background:#09111a; border:1px solid var(--border); padding:8px 10px; border-radius:10px; font-size:12px; color:var(--muted); z-index:99}
+    .mini-actions{display:flex; gap:6px}
+    .avatar{width:36px; height:36px; border-radius:999px; object-fit:cover; background:#0e1520; border:1px solid var(--border)}
+    .row-flex{display:flex; align-items:center; gap:10px}
+    .tag{font-size:11px; color:#0b1a0f; background:var(--primary); border:1px solid #2b8a3e; padding:2px 7px; border-radius:999px}
   </style>
-
-  <!-- Tu config actual -->
-  <script src="./config.js"></script>
-  <!-- SortableJS para drag & drop -->
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
 </head>
+
 <body>
   <div class="debug" id="debug">listo</div>
+
   <div class="layout">
     <aside>
       <div class="brand">
@@ -64,26 +88,89 @@
         </div>
       </div>
       <nav id="nav">
-        <button class="nav-btn" data-route="#/pedidos">🧾 Pedidos</button>
-        <button class="nav-btn" data-route="#/seguimiento">📍 Seguimiento</button>
-        <button class="nav-btn" data-route="#/clientes">👥 Clientes</button>
-        <button class="nav-btn" data-route="#/inventario">📦 Inventario</button>
-        <button class="nav-btn" data-route="#/devoluciones">↩️ Devoluciones</button>
-        <button class="nav-btn" data-route="#/transacciones">💳 Transacciones</button>
-        <button class="nav-btn" data-route="#/socios">🤝 Socios</button>
+        <button class="nav-btn" data-view="pedidos">🧾 Pedidos</button>
+        <button class="nav-btn" data-view="seguimiento">📍 Seguimiento</button>
+        <button class="nav-btn" data-view="clientes">👥 Clientes</button>
+        <button class="nav-btn" data-view="inventario">📦 Inventario</button>
+        <button class="nav-btn" data-view="devoluciones">↩️ Devoluciones</button>
+        <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
+        <button class="nav-btn" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="muted" style="margin-top:10px">v1.1 modular</div>
+      <div class="muted" style="margin-top:10px">v0.9 · socios por categoría</div>
     </aside>
-    <main>
-      <div class="topbar">
-        <div class="title" id="title">—</div>
-        <div id="topActions" class="actions-inline"></div>
-      </div>
-      <div id="view"></div>
-    </main>
+
+    <main id="app"></main>
   </div>
 
-  <!-- Entrada principal en módulos -->
+  <!-- ✅ MODAL: CATEGORÍA -->
+  <div class="backdrop" id="modalCat" style="display:none">
+    <div class="modal">
+      <h3 id="modalTitle">Nueva categoría</h3>
+      <form id="formCat">
+        <div class="grid2">
+          <div>
+            <label>Nombre</label>
+            <input name="nombre" type="text" placeholder="Ej: Proveedores" required />
+          </div>
+          <div>
+            <label>Color</label>
+            <input name="color" type="color" value="#3ba55d" />
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <label>Balance (placeholder)</label>
+          <input name="balance" type="number" step="0.01" value="0" />
+          <div class="muted" style="margin-top:6px">Luego será calculado automáticamente.</div>
+        </div>
+        <div class="modal footer">
+          <button type="button" class="btn" id="btnCancelCat">Cancelar</button>
+          <button type="submit" class="btn primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ✅ MODAL: SOCIO -->
+  <div class="backdrop" id="modalSocio" style="display:none">
+    <div class="modal">
+      <h3 id="modalSocioTitle">Nuevo socio</h3>
+      <form id="formSocio">
+        <div class="grid2">
+          <div>
+            <label>Empresa *</label>
+            <input name="empresa" type="text" placeholder="Nombre de la empresa" required />
+          </div>
+          <div>
+            <label>Titular *</label>
+            <input name="titular" type="text" placeholder="Nombre del titular" required />
+          </div>
+          <div>
+            <label>Teléfono</label>
+            <input name="telefono" type="tel" placeholder="300 000 0000" />
+          </div>
+          <div>
+            <label>Dirección</label>
+            <input name="direccion" type="text" placeholder="Calle 123 #45-67" />
+          </div>
+          <div>
+            <label>Logo / Imagen</label>
+            <input name="avatar" type="file" accept=".png,.jpg,.jpeg" />
+            <div class="muted" style="margin-top:6px">Opcional. Máx 2 MB.</div>
+          </div>
+        </div>
+        <div class="modal footer">
+          <button type="button" class="btn" id="btnCancelSocio">Cancelar</button>
+          <button type="submit" class="btn primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ✅ Scripts -->
+  <script src="config.js"></script>
+  <!-- Librería Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <!-- App principal -->
   <script type="module" src="./app/main.js"></script>
 </body>
 </html>
