@@ -1,20 +1,29 @@
-import { debug } from '../utils/dom.js';
+// js/services/supabase.js
+// Wrapper robusto para usar la UMD de Supabase y validar APP_CONFIG.
+// Mantiene compatibilidad: exporta getSupabase() y también un singleton supabaseClient.
 
-let client = null;
+let _client = null;
 
-export function getClient(){
-  if (client) return client;
-  const cfg = (window.APP_CONFIG)||{};
-  const url = cfg.SUPABASE_URL;
-  const key = cfg.SUPABASE_ANON_KEY;
-  if (!/^https?:\/\//.test(url) || !key) { debug('⚠️ Configura SUPABASE_URL / ANON KEY en config.js'); throw new Error('Supabase no configurado'); }
-  client = window.supabase.createClient(url, key);
-  return client;
+export function getSupabase(){
+  if (_client) return _client;
+
+  const cfg = window.APP_CONFIG || {};
+  const url = cfg.SUPABASE_URL || '';
+  const anon = cfg.SUPABASE_ANON_KEY || '';
+
+  if (!url || !anon) {
+    throw new Error('Supabase no configurado: faltan SUPABASE_URL / SUPABASE_ANON_KEY en config.js');
+  }
+  if (!window.supabase || !window.supabase.createClient) {
+    throw new Error('La librería UMD de Supabase no está cargada. Revisa index.html (script de supabase antes de app.js).');
+  }
+  _client = window.supabase.createClient(url, anon);
+  return _client;
 }
 
-export async function getCategoriaById(id){
-  const supabase = getClient();
-  const {data, error} = await supabase.from('categorias_socios').select('*').eq('id', id).single();
-  if (error) return null;
-  return data;
-}
+// Compatibilidad (por si en algún punto importabas { supabase }):
+export const supabase = {
+  from: (...args) => getSupabase().from(...args),
+  storage: { from: (...args)=> getSupabase().storage.from(...args) },
+  auth: { ...getSupabase().auth }
+};
