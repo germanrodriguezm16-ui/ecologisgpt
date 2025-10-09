@@ -25,7 +25,6 @@ export function update(ctx){
   view.update?.(ctx);
 }
 
-// por si hubiera limpieza extra al cambio de rutas
 router.on((ctx)=>{
   if (ctx.parts[0] !== 'socios' && mounted){
     unmount();
