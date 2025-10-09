@@ -172,6 +172,25 @@
     </div>
   </div>
 
+  <script src="config.js"></script>
+<script src="https://browser.sentry-cdn.com/8.20.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
+<script>
+  (function () {
+    var DSN = (window.APP_CONFIG && window.APP_CONFIG.SENTRY_DSN) || "";
+    if (DSN && window.Sentry) {
+      Sentry.init({ dsn: DSN, environment: "production", release: "eg@1.0.0", tracesSampleRate: 0, debug: true });
+      Sentry.setTag("app_area", "frontend");
+      Sentry.addBreadcrumb({ category: "boot", message: "index.html loaded", level: "info" });
+    }
+  })();
+</script>
+
+<!-- Supabase UMD -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+
+<!-- Tu app (debe ir al final) -->
+<script type="module" src="./app/main.js"></script>
+
   <!-- Scripts -->
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
