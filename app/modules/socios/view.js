@@ -1,11 +1,10 @@
-// app/modules/socios/view.js
 import { router } from '../../core/router.js';
 import * as act from './actions.js';
 import * as tpl from './templates.js';
 
 let root, topActionsEl, contentEl;
 let currentCatId = null;
-let viewMode = localStorage.getItem('sociosViewMode') || 'cards'; // 'cards' | 'list'
+let viewMode = localStorage.getItem('sociosViewMode') || 'cards';
 let onClick, onSubmitCat, onSubmitSocio;
 
 export async function mount(container){
@@ -20,13 +19,11 @@ export async function mount(container){
   topActionsEl = root.querySelector('#soc-actions');
   contentEl = root.querySelector('#soc-content');
 
-  // Delegación de eventos (un solo listener)
   onClick = async (e) => {
     const el = e.target.closest('[data-action]');
     if (!el) return;
     e.preventDefault();
-    if (el.tagName === 'BUTTON' && el.type !== 'button') el.type = 'button'; // blindaje
-
+    if (el.tagName === 'BUTTON' && el.type !== 'button') el.type = 'button';
     const { action, id } = el.dataset;
     switch(action){
       case 'new-cat': return openCatModal('create');
@@ -42,7 +39,6 @@ export async function mount(container){
   };
   root.addEventListener('click', onClick);
 
-  // Bind submits de modales si existen en index.html
   const modalCat = document.getElementById('modalCat');
   const formCat = document.getElementById('formCat');
   if (modalCat && formCat){
@@ -85,7 +81,6 @@ export async function mount(container){
       };
       if (!payload.empresa || !payload.titular) return alert('Empresa y Titular son obligatorios');
 
-      // upsert base
       let newId = payload.id;
       if (payload.id) {
         const { error } = await act.upsertSocio(payload);
@@ -96,7 +91,6 @@ export async function mount(container){
         newId = ins.data?.id;
       }
 
-      // upload opcional
       const file = f.avatar?.files?.[0];
       if (file && newId){
         if (file.size > 2*1024*1024) return alert('El archivo supera 2 MB');
@@ -112,7 +106,6 @@ export async function mount(container){
     if (btnCancelSoc) btnCancelSoc.addEventListener('click', () => { modalSoc.style.display='none'; });
   }
 
-  // Arranque: categorías
   await renderCategorias();
 }
 
@@ -128,8 +121,7 @@ export function unmount(){
 }
 
 export async function update(ctx){
-  // router podría llamarnos con #/socios o #/socios/:catId
-  const parts = ctx.parts;
+  const parts = ctx.parts || [];
   if (parts[0] !== 'socios') return;
   const catId = parts[1] ? Number(parts[1]) : null;
   if (catId !== currentCatId){
@@ -139,7 +131,6 @@ export async function update(ctx){
   }
 }
 
-/* ---------------- RENDERERS ---------------- */
 async function renderCategorias(){
   root.querySelector('#soc-title').textContent = 'Socios';
   topActionsEl.innerHTML = tpl.topbarCategorias();
@@ -153,12 +144,11 @@ async function renderCategorias(){
   const grid = document.createElement('div');
   grid.className = 'grid';
   grid.innerHTML = data.map(tpl.categoriaCard).join('');
-  // click en card para entrar a socios
   grid.addEventListener('click', (e) => {
     const card = e.target.closest('.card[data-id]');
     if (!card) return;
     const id = Number(card.dataset.id);
-    if (e.target.closest('[data-action]')) return; // evitar si click en editar/eliminar
+    if (e.target.closest('[data-action]')) return;
     location.hash = `#/socios/${id}`;
   });
   box.innerHTML = '';
@@ -174,6 +164,7 @@ async function renderSocios(){
   box.innerHTML = '<div class="loading">Cargando socios…</div>';
   const { data, error } = await act.listSociosByCategoria(currentCatId);
   if (error) { box.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; return; }
+
   if (!data.length){ box.innerHTML = '<div class="empty">No hay socios en esta categoría.</div>'; return; }
 
   if (viewMode === 'list'){
@@ -187,39 +178,4 @@ async function renderSocios(){
   }
 }
 
-/* ---------------- MODALES ---------------- */
-function openCatModal(mode, id){
-  const modal = document.getElementById('modalCat');
-  const form = document.getElementById('formCat');
-  if (!modal || !form) return alert('Modal de categoría no disponible.');
-  form.reset();
-  form.dataset.id = '';
-  const title = document.getElementById('modalTitle');
-  if (mode === 'edit' && id){
-    form.dataset.id = String(id);
-    if (title) title.textContent = 'Editar categoría';
-  } else {
-    if (title) title.textContent = 'Nueva categoría';
-  }
-  modal.style.display = 'flex';
-}
-
-function openSocioModal(mode, id){
-  const modal = document.getElementById('modalSocio');
-  const form = document.getElementById('formSocio');
-  if (!modal || !form) return alert('Modal de socio no disponible.');
-
-  form.reset();
-  form.dataset.id = '';
-  const title = document.getElementById('modalSocioTitle');
-  if (title) title.textContent = (mode === 'edit' ? 'Editar socio' : 'Nuevo socio');
-
-  if (mode === 'edit' && id){
-    form.dataset.id = String(id);
-    // Precarga opcional: se podría traer el socio por id si se requiere.
-  }
-  modal.style.display = 'flex';
-}
-
-/* ---------------- helpers ---------------- */
 function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
