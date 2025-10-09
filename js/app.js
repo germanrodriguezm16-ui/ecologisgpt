@@ -1,95 +1,156 @@
-import { $, $all, el, debug } from './utils/dom.js';
-import { loadCategorias } from './views/categorias.js';
-import { openSociosList, handleSocioFormSubmit } from './views/socios.js';
-import { getClient } from './services/supabase.js';
-import { bindConfirm, bindModalCloseButtons, openCatModal, getCatEditId, closeCatModal, getCatCfgId, closeCatConfig } from './ui/modals.js';
+// js/app.js
+// Fase 0: Router con mount/unmount y paracaídas de errores
+// Mantiene compatibilidad con tus vistas actuales (categorías/socios).
 
-// Sentry init (optional)
-(function(){
-  try{
-    const DSN = (window.APP_CONFIG && window.APP_CONFIG.SENTRY_DSN) || '';
-    if (DSN && window.Sentry) { window.Sentry.init({ dsn: DSN, environment: 'production', tracesSampleRate: 0 }); }
-  }catch(e){ console.warn('Sentry init skipped', e); }
-})();
-
-// Simple demo views for other modules
-function demoCard(t){ const c=document.createElement('div'); c.className='card'; c.innerHTML='<h3>'+t+'</h3><p class="muted">Vista demo.</p>'; return c; }
-
-function mountView(tab){
-  $all('.nav-btn', $('#nav')).forEach(b => b.classList.toggle('active', b.dataset.view===tab));
-  $('#title').textContent = tab.charAt(0).toUpperCase()+tab.slice(1);
-  $('#view').innerHTML='';
-  if (tab==='socios'){
-    const root = document.createElement('div');
-    root.id='sociosRoot';
-    root.appendChild(el('div',{id:'socTop',class:'actions-inline',style:{marginBottom:'12px'}},[]));
-    root.appendChild(el('div',{id:'socGrid',class:'grid'},[]));
-    $('#view').appendChild(root);
-    $('#topActions').innerHTML = '<button class="btn primary" id="btnNuevaCat" type="button">Crear categoría de socios</button>';
-    $('#btnNuevaCat')?.addEventListener('click', ()=> openCatModal('create'));
-    // ensure supabase
-    try { getClient(); } catch(e){ console.error(e); }
-    loadCategorias();
-  } else {
-    $('#topActions').innerHTML='';
-    $('#view').appendChild(demoCard(tab));
+// Utilidades DOM mínimas
+function $(s, el){ return (el||document).querySelector(s); }
+function el(tag, attrs={}, children=[]){
+  const n=document.createElement(tag);
+  for(const k in attrs){
+    if(k==='class') n.className=attrs[k];
+    else if(k==='style'){ Object.assign(n.style, attrs[k]); }
+    else n.setAttribute(k, attrs[k]);
   }
-  location.hash = tab;
+  for(const c of children){ n.appendChild(typeof c==='string'?document.createTextNode(c):c); }
+  return n;
 }
 
-function onHashChange(){
-  const tab = (location.hash||'#socios').slice(1);
-  mountView(tab);
+// Bloquea pantallazo negro: muestra errores en #view
+function showFatal(msg){
+  const v = $('#view') || document.body;
+  v.innerHTML = `<div style="padding:16px;background:#220c10;border:1px solid #5a1f2a;border-radius:12px;color:#ffb4b4">
+    ⚠️ ${msg}
+  </div>`;
 }
 
-document.addEventListener('DOMContentLoaded', ()=>{
-  // bind modals
-  bindConfirm();
-  bindModalCloseButtons();
-
-  // nav
-  $('#nav').addEventListener('click', (e)=>{
-    const btn = e.target.closest('.nav-btn'); if(!btn) return;
-    mountView(btn.dataset.view);
-  });
-
-  // forms submit binding
-  // Categoría
-  $('#formCat').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const supabase = getClient();
-    const f=e.target;
-    const nombre=f.nombre.value.trim(), color=f.color.value||'#3ba55d', balance=parseFloat(f.balance.value||'0');
-    if(!nombre) return alert('Nombre obligatorio');
-    const catId = getCatEditId();
-    if (catId){
-      const up = await supabase.from('categorias_socios').update({nombre,color,balance}).eq('id', catId);
-      if(up.error) return alert(up.error.message);
-    } else {
-      const ins = await supabase.from('categorias_socios').insert([{nombre,color,balance, tab2_name:'Notas', tab3_name:'Archivos'}]);
-      if(ins.error) return alert(ins.error.message);
-    }
-    closeCatModal();
-    loadCategorias();
-  });
-
-  // Config categoría
-  $('#formCatConfig').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const supabase = getClient();
-    const f=e.target;
-    const tab2_name = f.tab2_name.value.trim() || 'Notas';
-    const tab3_name = f.tab3_name.value.trim() || 'Archivos';
-    const id = getCatCfgId();
-    const up = await supabase.from('categorias_socios').update({tab2_name, tab3_name}).eq('id', id);
-    if(up.error) return alert(up.error.message);
-    closeCatConfig();
-    loadCategorias();
-  });
-
-  // Socio
-  $('#formSocio').addEventListener('submit', (e)=> handleSocioFormSubmit(e));
-
-  window.addEventListener('hashchange', onHashChange);
-  onHashChange();
+// Paracaídas globales
+window.addEventListener('error', (e)=>{
+  console.error('[GLOBAL ERROR]', e.error || e.message);
+  showFatal('Se produjo un error en la aplicación. Abre la Consola para ver detalles.');
 });
+window.addEventListener('unhandledrejection', (e)=>{
+  console.error('[PROMISE REJECTION]', e.reason);
+  showFatal('Error inesperado. Revisa la Consola del navegador.');
+});
+
+// ---- Router básico con lifecycle ----
+let currentUnmount = null;
+
+async function safeUnmount(){
+  try{
+    if(typeof currentUnmount === 'function') await currentUnmount();
+  }catch(err){
+    console.warn('[unmount error]', err);
+  }finally{
+    currentUnmount = null;
+  }
+}
+
+async function mountWithFallback(loadModule, candidates, mountArgs=[]){
+  // Carga dinámica del módulo y busca cualquier firma conocida de montaje
+  const mod = await loadModule();
+  const f = candidates.find(name => typeof mod[name] === 'function');
+  if (!f) throw new Error('No se encontró función de montaje en el módulo.');
+  const un = await mod[f](...mountArgs);
+  // Permite que el módulo devuelva un unmount o que exponga una función conocida
+  if (typeof un === 'function') return un;
+  const uf = ['unmount','unmountView','unmountCategorias','unmountSocios'].find(name => typeof mod[name] === 'function');
+  if (uf) return mod[uf];
+  return null;
+}
+
+function setTitle(t){ const te = $('#title'); if(te) te.textContent = t; }
+function clearTopActions(){ const ta=$('#topActions'); if(ta) ta.innerHTML=''; }
+
+// Rutas soportadas
+async function handleRoute(){
+  const hash = location.hash || '#/socios';
+  const [_, route] = hash.split('#/');
+  await safeUnmount();
+
+  // siempre hay contenedor
+  const view = $('#view');
+  if (view) view.innerHTML = '';
+
+  try{
+    switch(route){
+      case 'socios':
+        setTitle('Socios');
+        clearTopActions();
+        // Vista de CATEGORÍAS (home de socios)
+        currentUnmount = await mountWithFallback(
+          () => import('./views/categorias.js'),
+          // Buscamos cualquiera de estas (compatibilidad con tus nombres previos)
+          ['mountCategorias','mountCategoriasView','mount','initCategorias'],
+          [view]
+        );
+        break;
+
+      case 'transacciones':
+        setTitle('Transacciones');
+        clearTopActions();
+        currentUnmount = await mountWithFallback(
+          () => import('./views/transacciones.js'),
+          ['mountTransacciones','mount','init'],
+          [view]
+        );
+        break;
+
+      case 'pedidos': case 'seguimiento': case 'clientes':
+      case 'inventario': case 'devoluciones': case 'transacciones-old':
+        setTitle(route.charAt(0).toUpperCase()+route.slice(1));
+        clearTopActions();
+        if (view) view.appendChild(el('div',{class:'card',style:{padding:'16px'}},[
+          el('h3',{},['Vista ', route]), el('div',{class:'muted'},['(Placeholder)'])
+        ]));
+        currentUnmount = null;
+        break;
+
+      default:
+        // fallback a socios
+        location.hash = '#/socios';
+        return;
+    }
+  }catch(err){
+    console.error('[route error]', err);
+    showFatal('No se pudo montar la vista. Revisa la Consola del navegador.');
+  }
+}
+
+// Navegación del sidebar (data-view)
+function wireNav(){
+  const nav = $('#nav');
+  if(!nav) return;
+  nav.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.nav-btn');
+    if (!btn) return;
+    const r = btn.getAttribute('data-view');
+    if (!r) return;
+    location.hash = '#/'+r;
+  });
+
+  // Estado activo
+  function markActive(){
+    const r = (location.hash || '#/socios').replace('#/','');
+    Array.from(nav.querySelectorAll('.nav-btn')).forEach(b=>{
+      b.classList.toggle('active', b.getAttribute('data-view')===r);
+    });
+  }
+  window.addEventListener('hashchange', markActive);
+  markActive();
+}
+
+// Asegura hash por defecto y arranca
+window.addEventListener('DOMContentLoaded', ()=>{
+  try{
+    if(!location.hash || location.hash==='#') location.hash = '#/socios';
+    wireNav();
+    handleRoute();
+  }catch(err){
+    console.error('[bootstrap error]', err);
+    showFatal('Error al iniciar la app. Revisa la Consola del navegador.');
+  }
+});
+
+// Reacciona a cambios de ruta
+window.addEventListener('hashchange', handleRoute);
