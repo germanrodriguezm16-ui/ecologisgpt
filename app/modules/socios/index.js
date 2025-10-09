@@ -1,18 +1,33 @@
-import { $, $$ } from '../../core/utils.js';
-import { store } from '../../core/store.js';
-import { renderCategorias } from './view.js';
+// app/modules/socios/index.js
+import * as view from './view.js';
+import { router } from '../../core/router.js';
 
-let mounted = false;
-export async function mount(root){
-  mounted = true;
-  $('#title').textContent = 'Socios';
-  const wrapper = document.createElement('div');
-  wrapper.id='sociosRoot';
-  root.appendChild(wrapper);
-  await renderCategorias(wrapper);
+let mounted = false, container = null;
+
+export function mount(el){
+  container = el;
+  if (!mounted){
+    view.mount(container);
+    mounted = true;
+  }
 }
+
 export function unmount(){
-  mounted = false;
-  const top = document.getElementById('topActions'); if(top) top.innerHTML='';
+  if (mounted){
+    view.unmount?.();
+    container.innerHTML = '';
+    mounted = false;
+  }
 }
-export function update(){};
+
+export function update(ctx){
+  if (!mounted) return;
+  view.update?.(ctx);
+}
+
+// por si hubiera limpieza extra al cambio de rutas
+router.on((ctx)=>{
+  if (ctx.parts[0] !== 'socios' && mounted){
+    unmount();
+  }
+});
