@@ -1,11 +1,11 @@
 // app/core/utils.js
 export function $(s, el){ return (el||document).querySelector(s); }
 export function $all(s, el){ return Array.from((el||document).querySelectorAll(s)); }
-export function esc(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 export function fmt(n){ return Number(n||0).toLocaleString('es-CO',{maximumFractionDigits:2}); }
+export function esc(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 export function debug(msg){ const d=$('#debug'); if(d) d.textContent=String(msg); }
 
-/* Colores y contraste */
+/* colores y contraste */
 export function hexToRgb(hex){
   hex = String(hex||'').replace('#','');
   if(hex.length===3) hex=hex.split('').map(x=>x+x).join('');
@@ -21,5 +21,7 @@ export function contrastColor(bg){ const L=relLum(hexToRgb(bg)); return L>0.5?'#
 export function mutedFor(bg){ return contrastColor(bg)==='#000'?'rgba(0,0,0,.72)':'rgba(255,255,255,.72)'; }
 export function borderOn(bg){ const L=relLum(hexToRgb(bg)); return L>0.5?'rgba(0,0,0,.25)':'rgba(255,255,255,.25)'; }
 
-/* pequeñas helpers */
-export function initials(txt){ txt=String(txt||''); const p=txt.trim().split(/\s+/); return (p[0]?.[0]||'')+(p[1]?.[0]||'') || 'SO'; }
+export function initials(txt){
+  txt=String(txt||''); const p=txt.trim().split(/\s+/);
+  return (p.slice(0,2).map(x=>x[0]||'').join('') || 'SO').toUpperCase();
+}
