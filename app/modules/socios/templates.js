@@ -1,14 +1,8 @@
 // app/modules/socios/templates.js
-// Plantillas HTML para el módulo de Socios (categorías y socios)
-
 import { contrastColor, mutedFor, borderOn } from '../../core/utils.js';
 
-/* ───────────────────────────────── Topbars ───────────────────────────────── */
-
 export function topbarCategorias(){
-  return `
-    <button class="btn primary" data-action="new-cat">Crear categoría</button>
-  `;
+  return `<button class="btn primary" data-action="new-cat">Crear categoría</button>`;
 }
 
 export function topbarSocios(){
@@ -20,8 +14,6 @@ export function topbarSocios(){
     <button class="btn primary" data-action="new-socio">Crear socio</button>
   `;
 }
-
-/* ─────────────────────────────── Categorías ─────────────────────────────── */
 
 export function categoriaCard(row){
   const bg = row.color || '#3ba55d';
@@ -50,8 +42,6 @@ export function categoriaCard(row){
     </div>
   `;
 }
-
-/* ──────────────────────────────── Socios ───────────────────────────────── */
 
 export function socioCard(row){
   const col = row.card_color || '#121a26';
@@ -90,19 +80,12 @@ export function socioCard(row){
   `;
 }
 
-/* ───────────────────────────── Vista de Lista ───────────────────────────── */
-
 export function sociosListTable(rows){
-  const header = `
+  return `
     <table class="list">
       <thead>
         <tr>
-          <th></th>
-          <th>Empresa</th>
-          <th>Titular</th>
-          <th>Teléfono</th>
-          <th>Dirección</th>
-          <th></th>
+          <th></th><th>Empresa</th><th>Titular</th><th>Teléfono</th><th>Dirección</th><th></th>
         </tr>
       </thead>
       <tbody>
@@ -110,16 +93,13 @@ export function sociosListTable(rows){
       </tbody>
     </table>
   `;
-  return header;
 }
 
 function socioListRow(r){
   const muted = 'var(--muted)';
   const avatar = r.avatar_url
     ? `<img class="avatar" src="${escapeHtml(r.avatar_url)}" alt="">`
-    : `<div class="avatar" style="display:grid;place-items:center;color:${muted};font-weight:700">
-         ${initials(r.empresa)}
-       </div>`;
+    : `<div class="avatar" style="display:grid;place-items:center;color:${muted};font-weight:700">${initials(r.empresa)}</div>`;
   return `
     <tr data-id="${r.id}">
       <td>${avatar}</td>
@@ -139,20 +119,7 @@ function socioListRow(r){
   `;
 }
 
-/* ────────────────────────────── Helpers locales ─────────────────────────── */
-
-function fmt(n){
-  return Number(n).toLocaleString('es-CO', { maximumFractionDigits: 2 });
-}
-
-function escapeHtml(s){
-  return String(s || '').replace(/[&<>"']/g, (m) => (
-    { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]
-  ));
-}
-
-function initials(txt){
-  txt = String(txt || '');
-  const p = txt.trim().split(/\s+/);
-  return (p.slice(0,2).map(x => x[0] || '').join('').toUpperCase()) || 'SO';
-}
+/* helpers locales */
+function fmt(n){ return Number(n).toLocaleString('es-CO',{maximumFractionDigits:2}); }
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function initials(txt){ txt=String(txt||''); const p=txt.trim().split(/\s+/); return (p.slice(0,2).map(x=>x[0]||'').join('').toUpperCase()) || 'SO'; }
