@@ -1,5 +1,3 @@
-// app/modules/socios/templates.js
-
 export function topbarCategorias() {
   return /*html*/`
     <div class="actions-inline">
@@ -88,7 +86,6 @@ export function sociosListTable(rows){
   `;
 }
 
-// helpers
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function escapeAttr(s){ return escapeHtml(s); }
 function fmt(n){ return Number(n).toLocaleString('es-CO',{maximumFractionDigits:2}); }
