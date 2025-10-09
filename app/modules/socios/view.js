@@ -1,197 +1,225 @@
-import { $, $$ } from '../../core/utils.js';
-import { store, setPrefView } from '../../core/store.js';
-import { listCategorias, createCategoria, updateCategoria, deleteCategoria, saveOrdenCategorias,
-         listSocios, createSocio, updateSocio, deleteSocio, countSocios, saveOrdenSocios, uploadAvatar } from './actions.js';
-import { catCard, socioCard, sociosTable } from './templates.js';
+// app/modules/socios/view.js
+import { router } from '../../core/router.js';
+import * as act from './actions.js';
+import * as tpl from './templates.js';
 
-// ------- Render Categorías -------
-export async function renderCategorias(root){
-  const grid = document.createElement('div'); grid.className='grid'; grid.id='catGrid';
-  root.appendChild(grid);
+let root, topActionsEl, contentEl;
+let currentCatId = null;
+let viewMode = localStorage.getItem('sociosViewMode') || 'cards'; // 'cards' | 'list'
+let onClick, onSubmitCat, onSubmitSocio;
 
-  const res = await listCategorias();
-  if(res.error){ grid.innerHTML = `<div class="muted">Error cargando categorías: ${res.error.message}</div>`; return; }
-  const cats = res.data || [];
-  if(!cats.length){ grid.innerHTML = '<div class="muted">No hay categorías.</div>'; return; }
-
-  cats.forEach(cat => {
-    const card = catCard(cat);
-    card.addEventListener('click', (ev)=>{
-      if(ev.target.closest('.icon-btn')) return;
-      openSocios(root, cat);
-    });
-    card.querySelector('.icon-btn.edit').addEventListener('click', (e)=>{ e.stopPropagation(); openCatModal(root, cat); });
-    card.querySelector('.icon-btn.delete').addEventListener('click', async (e)=>{ e.stopPropagation(); if(confirm(`¿Eliminar la categoría "${cat.nombre}"?`)){ const del=await deleteCategoria(cat.id); if(del.error) alert(del.error.message); else renderCategorias(root.parentElement); }});
-    grid.appendChild(card);
-  });
-
-  // Drag & drop categorías
-  if(grid._sortable){ grid._sortable.destroy(); }
-  grid._sortable = Sortable.create(grid, {
-    animation:150, draggable: '.card',
-    onEnd: async ()=>{
-      const nodes = $$('.card', grid);
-      const updates = nodes.map((n,idx)=>({ id: n.dataset.id, orden: idx+1 }));
-      await saveOrdenCategorias(updates);
-      renderCategorias(root.parentElement);
-    }
-  });
-
-  // Top actions
-  const top = $('#topActions'); top.innerHTML='';
-  const btn = document.createElement('button'); btn.className='btn primary'; btn.textContent='Crear categoría de socios';
-  btn.addEventListener('click', ()=> openCatModal(root, null));
-  top.appendChild(btn);
-}
-
-function openCatModal(root, cat){
-  // modal inline simple (prompt) para mantener el ejemplo compacto
-  const nombre = prompt('Nombre de la categoría:', cat?.nombre || '');
-  if(nombre===null) return;
-  const color = prompt('Color (hex):', cat?.color || '#3ba55d') || '#3ba55d';
-  const bal = Number(prompt('Balance (placeholder):', String(cat?.balance ?? 0)) || 0);
-  (cat ? updateCategoria(cat.id,{nombre,color,balance:bal}) : createCategoria({nombre,color,balance:bal}))
-    .then(r => { if(r.error) alert(r.error.message); renderCategorias(root.parentElement); });
-}
-
-// ------- Render Socios por categoría -------
-export async function openSocios(root, cat){
-  store.currentCat = cat.id;
-  store.currentCatName = cat.nombre || 'Socios';
-  $('#title').textContent = 'Socios · ' + store.currentCatName;
-  const top = $('#topActions');
-  top.innerHTML = `
-    <button class="btn ghost" id="btnBack">← Volver a categorías</button>
-    <div class="actions-inline">
-      <input id="socioSearch" type="text" placeholder="Buscar socio…" style="padding:10px 12px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;min-width:220px" />
-      <button class="btn ${store.prefView==='list'?'warn':''}" id="btnList">Lista</button>
-      <button class="btn ${store.prefView==='cards'?'warn':''}" id="btnCards">Tarjetas</button>
-      <button class="btn primary" id="btnNew">Crear socio</button>
+export async function mount(container){
+  root = container;
+  root.innerHTML = `
+    <div class="topbar">
+      <div class="title" id="soc-title">Socios</div>
+      <div id="soc-actions" class="actions-inline"></div>
     </div>
+    <div id="soc-content"></div>
   `;
-  $('#btnBack').addEventListener('click', ()=> location.hash = '#/socios');
-  $('#btnList').addEventListener('click', ()=>{ setPrefView('list'); renderSocios(root); });
-  $('#btnCards').addEventListener('click', ()=>{ setPrefView('cards'); renderSocios(root); });
-  $('#btnNew').addEventListener('click', ()=> openSocioModal(root, null));
-  $('#socioSearch').addEventListener('input', (e)=> applyFilter(root, e.target.value.trim().toLowerCase()));
+  topActionsEl = root.querySelector('#soc-actions');
+  contentEl = root.querySelector('#soc-content');
 
-  root.innerHTML=''; const container = document.createElement('div'); container.id='socContainer'; root.appendChild(container);
-  await renderSocios(root);
+  // Delegación de eventos (un solo listener)
+  onClick = async (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    e.preventDefault();
+    if (el.tagName === 'BUTTON' && el.type !== 'button') el.type = 'button'; // blindaje
+
+    const { action, id } = el.dataset;
+    switch(action){
+      case 'new-cat': return openCatModal('create');
+      case 'edit-cat': return openCatModal('edit', id);
+      case 'delete-cat': return deleteCat(id);
+      case 'back-to-cats': currentCatId = null; return renderCategorias();
+      case 'new-socio': return openSocioModal('create');
+      case 'edit-socio': return openSocioModal('edit', id);
+      case 'delete-socio': return deleteSocio(id);
+      case 'list-view': viewMode = 'list'; localStorage.setItem('sociosViewMode','list'); return renderSocios();
+      case 'cards-view': viewMode = 'cards'; localStorage.setItem('sociosViewMode','cards'); return renderSocios();
+    }
+  };
+  root.addEventListener('click', onClick);
+
+  // Bind submits de modales si existen en index.html
+  const modalCat = document.getElementById('modalCat');
+  const formCat = document.getElementById('formCat');
+  if (modalCat && formCat){
+    onSubmitCat = async (ev) => {
+      ev.preventDefault();
+      const f = ev.target;
+      const payload = {
+        id: f.dataset.id ? Number(f.dataset.id) : undefined,
+        nombre: f.nombre.value.trim(),
+        color: f.color.value || '#3ba55d',
+        balance: Number(f.balance.value || '0')
+      };
+      if (!payload.nombre) return alert('Nombre obligatorio');
+      const { error } = await act.upsertCategoria(payload);
+      if (error) return alert(error.message);
+      modalCat.style.display = 'none';
+      await renderCategorias();
+    };
+    formCat.addEventListener('submit', onSubmitCat);
+    const btnCancelCat = document.getElementById('btnCancelCat');
+    if (btnCancelCat) btnCancelCat.addEventListener('click', () => { modalCat.style.display='none'; });
+  }
+
+  const modalSoc = document.getElementById('modalSocio');
+  const formSoc = document.getElementById('formSocio');
+  if (modalSoc && formSoc){
+    onSubmitSocio = async (ev) => {
+      ev.preventDefault();
+      const f = ev.target;
+      const data = new FormData(f);
+      const payload = {
+        id: f.dataset.id ? Number(f.dataset.id) : undefined,
+        categoria_id: currentCatId,
+        empresa: (data.get('empresa')||'').toString().trim(),
+        titular: (data.get('titular')||'').toString().trim(),
+        telefono: (data.get('telefono')||'').toString().trim() || null,
+        direccion: (data.get('direccion')||'').toString().trim() || null,
+        balance: data.get('balance') ? Number(data.get('balance')) : null,
+        card_color: data.get('card_color') || null
+      };
+      if (!payload.empresa || !payload.titular) return alert('Empresa y Titular son obligatorios');
+
+      // upsert base
+      let newId = payload.id;
+      if (payload.id) {
+        const { error } = await act.upsertSocio(payload);
+        if (error) return alert(error.message);
+      } else {
+        const ins = await act.upsertSocio(payload);
+        if (ins.error) return alert(ins.error.message);
+        newId = ins.data?.id;
+      }
+
+      // upload opcional
+      const file = f.avatar?.files?.[0];
+      if (file && newId){
+        if (file.size > 2*1024*1024) return alert('El archivo supera 2 MB');
+        const up = await act.uploadAvatar(file, newId);
+        if (up.error) alert('Error subiendo imagen: ' + up.error.message);
+      }
+
+      modalSoc.style.display = 'none';
+      await renderSocios();
+    };
+    formSoc.addEventListener('submit', onSubmitSocio);
+    const btnCancelSoc = document.getElementById('btnCancelSocio');
+    if (btnCancelSoc) btnCancelSoc.addEventListener('click', () => { modalSoc.style.display='none'; });
+  }
+
+  // Arranque: categorías
+  await renderCategorias();
 }
 
-let lastRows = [];
-export async function renderSocios(root){
-  const container = $('#socContainer') || root;
-  container.innerHTML = 'Cargando…';
-  const res = await listSocios(store.currentCat);
-  if(res.error){ container.innerHTML = `<div class="muted">Error: ${res.error.message}</div>`; return; }
-  lastRows = res.data || [];
-  draw(container, lastRows);
+export function unmount(){
+  if (root && onClick) root.removeEventListener('click', onClick);
+  const formCat = document.getElementById('formCat');
+  if (formCat && onSubmitCat) formCat.removeEventListener('submit', onSubmitCat);
+  const formSoc = document.getElementById('formSocio');
+  if (formSoc && onSubmitSocio) formSoc.removeEventListener('submit', onSubmitSocio);
+  root = topActionsEl = contentEl = null;
+  currentCatId = null;
+  onClick = onSubmitCat = onSubmitSocio = null;
 }
 
-function draw(container, rows){
-  container.innerHTML='';
-  if(!rows.length){ container.innerHTML = '<div class="muted">No hay socios en esta categoría.</div>'; return; }
-
-  if(store.prefView==='list'){
-    const table = sociosTable(rows);
-    container.appendChild(table);
-    // acciones
-    $$('.icon-btn.edit', table).forEach(btn => btn.addEventListener('click', ()=>{
-      const id = btn.closest('tr').dataset.id;
-      const s = rows.find(x => String(x.id)===String(id));
-      openSocioModal(container, s);
-    }));
-    $$('.icon-btn.delete', table).forEach(btn => btn.addEventListener('click', async ()=>{
-      const id = btn.closest('tr').dataset.id;
-      if(confirm('¿Eliminar este socio?')){ const r=await deleteSocio(id); if(r.error) alert(r.error.message); renderSocios(container.parentElement); }
-    }));
-    // drag table
-    const tbody = $('tbody', table);
-    if(tbody._sortable) tbody._sortable.destroy();
-    tbody._sortable = Sortable.create(tbody, {
-      animation:150, draggable:'tr',
-      onEnd: async ()=>{
-        const nodes = $$('tr', tbody);
-        const updates = nodes.map((n,idx)=>({ id: n.dataset.id, orden: idx+1 }));
-        await saveOrdenSocios(updates);
-        renderSocios(container.parentElement);
-      }
-    });
-  }else{
-    const grid = document.createElement('div'); grid.className='grid'; grid.id='socGrid';
-    rows.forEach(r => {
-      const card = socioCard(r);
-      card.querySelector('.icon-btn.edit').addEventListener('click', ()=> openSocioModal(container, r));
-      card.querySelector('.icon-btn.delete').addEventListener('click', async ()=>{
-        if(confirm('¿Eliminar este socio?')){ const del=await deleteSocio(r.id); if(del.error) alert(del.error.message); renderSocios(container.parentElement); }
-      });
-      grid.appendChild(card);
-    });
-    container.appendChild(grid);
-    // drag cards
-    if(grid._sortable) grid._sortable.destroy();
-    grid._sortable = Sortable.create(grid, {
-      animation:150, draggable:'.card',
-      onEnd: async ()=>{
-        const nodes = $$('.card', grid);
-        const updates = nodes.map((n,idx)=>({ id: n.dataset.id, orden: idx+1 }));
-        await saveOrdenSocios(updates);
-        renderSocios(container.parentElement);
-      }
-    });
+export async function update(ctx){
+  // router podría llamarnos con #/socios o #/socios/:catId
+  const parts = ctx.parts;
+  if (parts[0] !== 'socios') return;
+  const catId = parts[1] ? Number(parts[1]) : null;
+  if (catId !== currentCatId){
+    currentCatId = catId;
+    if (currentCatId) await renderSocios();
+    else await renderCategorias();
   }
 }
 
-function applyFilter(root, q){
-  if(!q) return draw($('#socContainer'), lastRows);
-  const fields = r => [r.empresa||'', r.titular||'', r.telefono||'', r.direccion||'', (r.balance!=null? String(r.balance):'')].join(' ').toLowerCase();
-  const filtered = lastRows.filter(r => fields(r).includes(q));
-  draw($('#socContainer'), filtered);
-}
+/* ---------------- RENDERERS ---------------- */
+async function renderCategorias(){
+  root.querySelector('#soc-title').textContent = 'Socios';
+  topActionsEl.innerHTML = tpl.topbarCategorias();
 
-function openSocioModal(root, socio){
-  // modal inline simplificado con prompts para ejemplificar (puede reemplazarse luego por UI completa)
-  const empresa = prompt('Empresa *', socio?.empresa || '');
-  if(empresa===null || !empresa.trim()) return;
-  const titular = prompt('Titular *', socio?.titular || '');
-  if(titular===null || !titular.trim()) return;
-  const telefono = prompt('Teléfono', socio?.telefono || '') || '';
-  const direccion = prompt('Dirección', socio?.direccion || '') || '';
-  const balanceStr = prompt('Balance', String(socio?.balance ?? '')) || '';
-  const balance = balanceStr==='' ? null : Number(balanceStr);
-  const color = prompt('Color de tarjeta (hex)', socio?.card_color || '#18213a') || '#18213a';
+  const box = contentEl;
+  box.innerHTML = '<div class="loading">Cargando categorías…</div>';
+  const { data, error } = await act.listCategorias();
+  if (error) { box.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; return; }
+  if (!data.length){ box.innerHTML = '<div class="empty">No hay categorías aún.</div>'; return; }
 
-  (async ()=>{
-    if(socio){
-      const up = await updateSocio(socio.id, { empresa, titular, telefono, direccion, balance, card_color: color });
-      if(up.error) return alert(up.error.message);
-    }else{
-      const cnt = await countSocios(store.currentCat);
-      const orden = (cnt.count || 0) + 1;
-      const ins = await createSocio({ categoria_id: store.currentCat, empresa, titular, telefono, direccion, balance, card_color: color, orden });
-      if(ins.error) return alert(ins.error.message);
-      // Avatar opcional
-      const wantAvatar = confirm('¿Quieres subir un avatar ahora?');
-      if(wantAvatar){
-        const file = await pickFile();
-        if(file){
-          const up = await uploadAvatar(ins.data.id, file);
-          if(up?.data?.url){
-            await updateSocio(ins.data.id, { avatar_url: up.data.url });
-          }
-        }
-      }
-    }
-    renderSocios(root.parentElement);
-  })();
-}
-
-function pickFile(){
-  return new Promise(resolve => {
-    const input = document.createElement('input');
-    input.type='file'; input.accept='image/*';
-    input.onchange = ()=> resolve(input.files[0] || null);
-    input.click();
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  grid.innerHTML = data.map(tpl.categoriaCard).join('');
+  // click en card para entrar a socios
+  grid.addEventListener('click', (e) => {
+    const card = e.target.closest('.card[data-id]');
+    if (!card) return;
+    const id = Number(card.dataset.id);
+    if (e.target.closest('[data-action]')) return; // evitar si click en editar/eliminar
+    location.hash = `#/socios/${id}`;
   });
+  box.innerHTML = '';
+  box.appendChild(grid);
 }
+
+async function renderSocios(){
+  if (!currentCatId){ return renderCategorias(); }
+  root.querySelector('#soc-title').textContent = 'Socios · Categoría';
+  topActionsEl.innerHTML = tpl.topbarSocios();
+
+  const box = contentEl;
+  box.innerHTML = '<div class="loading">Cargando socios…</div>';
+  const { data, error } = await act.listSociosByCategoria(currentCatId);
+  if (error) { box.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; return; }
+  if (!data.length){ box.innerHTML = '<div class="empty">No hay socios en esta categoría.</div>'; return; }
+
+  if (viewMode === 'list'){
+    box.innerHTML = tpl.sociosListTable(data);
+  } else {
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    grid.innerHTML = data.map(tpl.socioCard).join('');
+    box.innerHTML = '';
+    box.appendChild(grid);
+  }
+}
+
+/* ---------------- MODALES ---------------- */
+function openCatModal(mode, id){
+  const modal = document.getElementById('modalCat');
+  const form = document.getElementById('formCat');
+  if (!modal || !form) return alert('Modal de categoría no disponible.');
+  form.reset();
+  form.dataset.id = '';
+  const title = document.getElementById('modalTitle');
+  if (mode === 'edit' && id){
+    form.dataset.id = String(id);
+    if (title) title.textContent = 'Editar categoría';
+  } else {
+    if (title) title.textContent = 'Nueva categoría';
+  }
+  modal.style.display = 'flex';
+}
+
+function openSocioModal(mode, id){
+  const modal = document.getElementById('modalSocio');
+  const form = document.getElementById('formSocio');
+  if (!modal || !form) return alert('Modal de socio no disponible.');
+
+  form.reset();
+  form.dataset.id = '';
+  const title = document.getElementById('modalSocioTitle');
+  if (title) title.textContent = (mode === 'edit' ? 'Editar socio' : 'Nuevo socio');
+
+  if (mode === 'edit' && id){
+    form.dataset.id = String(id);
+    // Precarga opcional: se podría traer el socio por id si se requiere.
+  }
+  modal.style.display = 'flex';
+}
+
+/* ---------------- helpers ---------------- */
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
