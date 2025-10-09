@@ -1,72 +1,115 @@
+// app/modules/socios/actions.js
 import { getSupabase } from '../../core/supabaseClient.js';
 
-// ===== CATEGORÍAS =====
-export async function listCategorias(){
+/* ================= CATEGORÍAS ================= */
+export async function listCategorias() {
   const sb = await getSupabase();
-  return sb.from('categorias_socios')
+  const { data, error } = await sb.from('categorias_socios')
     .select('*')
-    .order('orden',{ascending:true, nullsFirst:true})
-    .order('created_at',{ascending:false});
+    .order('orden', { ascending: true, nullsFirst: true })
+    .order('created_at', { ascending: false });
+  return { data: data || [], error };
 }
 
-export async function createCategoria({nombre,color,balance}){
+export async function upsertCategoria(payload) {
   const sb = await getSupabase();
-  return sb.from('categorias_socios').insert([{nombre,color,balance}]);
-}
-export async function updateCategoria(id, {nombre,color,balance}){
-  const sb = await getSupabase();
-  return sb.from('categorias_socios').update({nombre,color,balance}).eq('id', id);
-}
-export async function deleteCategoria(id){
-  const sb = await getSupabase();
-  return sb.from('categorias_socios').delete().eq('id', id);
-}
-export async function saveOrdenCategorias(updates){
-  const sb = await getSupabase();
-  const tasks = updates.map(u => sb.from('categorias_socios').update({orden:u.orden}).eq('id', u.id));
-  return Promise.all(tasks);
+  if (payload.id) {
+    const { error } = await sb.from('categorias_socios')
+      .update({
+        nombre: payload.nombre,
+        color: payload.color ?? '#3ba55d',
+        balance: payload.balance ?? 0,
+        orden: payload.orden ?? null
+      })
+      .eq('id', payload.id);
+    return { error };
+  } else {
+    const { data, error } = await sb.from('categorias_socios')
+      .insert([{
+        nombre: payload.nombre,
+        color: payload.color ?? '#3ba55d',
+        balance: payload.balance ?? 0,
+        orden: payload.orden ?? null
+      }])
+      .select().single();
+    return { data, error };
+  }
 }
 
-// ===== SOCIOS =====
-export async function listSocios(categoria_id){
+export async function deleteCategoria(id) {
   const sb = await getSupabase();
-  return sb.from('socios')
+  const { error } = await sb.from('categorias_socios').delete().eq('id', id);
+  return { error };
+}
+
+/* ================= SOCIOS ================= */
+export async function listSociosByCategoria(catId) {
+  const sb = await getSupabase();
+  const { data, error } = await sb.from('socios')
     .select('*')
-    .eq('categoria_id', categoria_id)
-    .order('orden',{ascending:true, nullsFirst:true})
-    .order('created_at',{ascending:true});
+    .eq('categoria_id', catId)
+    .order('orden', { ascending: true, nullsFirst: true })
+    .order('created_at', { ascending: false });
+  return { data: data || [], error };
 }
 
-export async function createSocio(payload){
+export async function upsertSocio(payload) {
   const sb = await getSupabase();
-  return sb.from('socios').insert([payload]).select('id').single();
-}
-export async function updateSocio(id, payload){
-  const sb = await getSupabase();
-  return sb.from('socios').update(payload).eq('id', id);
-}
-export async function deleteSocio(id){
-  const sb = await getSupabase();
-  return sb.from('socios').delete().eq('id', id);
-}
-export async function countSocios(categoria_id){
-  const sb = await getSupabase();
-  return sb.from('socios').select('*',{head:true, count:'exact'}).eq('categoria_id', categoria_id);
-}
-export async function saveOrdenSocios(updates){
-  const sb = await getSupabase();
-  const tasks = updates.map(u => sb.from('socios').update({orden:u.orden}).eq('id', u.id));
-  return Promise.all(tasks);
+  if (payload.id) {
+    const { error } = await sb.from('socios')
+      .update({
+        empresa: payload.empresa,
+        titular: payload.titular,
+        telefono: payload.telefono ?? null,
+        direccion: payload.direccion ?? null,
+        balance: payload.balance ?? null,
+        card_color: payload.card_color ?? null,
+        avatar_url: payload.avatar_url ?? undefined, // no toques si no viene
+        orden: payload.orden ?? undefined
+      })
+      .eq('id', payload.id);
+    return { error };
+  } else {
+    const { data, error } = await sb.from('socios')
+      .insert([{
+        categoria_id: payload.categoria_id,
+        empresa: payload.empresa,
+        titular: payload.titular,
+        telefono: payload.telefono ?? null,
+        direccion: payload.direccion ?? null,
+        balance: payload.balance ?? null,
+        card_color: payload.card_color ?? null,
+        avatar_url: payload.avatar_url ?? null,
+        orden: payload.orden ?? null
+      }]).select('id').single();
+    return { data, error };
+  }
 }
 
-// ===== STORAGE (avatar) =====
-export async function uploadAvatar(socioId, file){
-  if(!file) return null;
+export async function deleteSocio(id) {
   const sb = await getSupabase();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const { error } = await sb.from('socios').delete().eq('id', id);
+  return { error };
+}
+
+export async function saveSociosOrder(catId, orderedIds) {
+  const sb = await getSupabase();
+  // Actualiza en batch los índices
+  const updates = orderedIds.map((id, idx) => sb.from('socios').update({ orden: idx }).eq('id', id));
+  const results = await Promise.all(updates);
+  const error = results.find(r => r.error)?.error || null;
+  return { error };
+}
+
+export async function uploadAvatar(file, socioId) {
+  if (!file) return { url: null };
+  const sb = await getSupabase();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const path = `${socioId}/${Date.now()}_${safeName}`;
   const up = await sb.storage.from('socios').upload(path, file, { upsert: true });
-  if(up.error) return { error: up.error };
+  if (up.error) return { error: up.error };
   const pub = sb.storage.from('socios').getPublicUrl(path);
-  return { data: { url: pub.data.publicUrl } };
+  const url = pub?.data?.publicUrl || null;
+  if (url) await sb.from('socios').update({ avatar_url: url }).eq('id', socioId);
+  return { url };
 }
