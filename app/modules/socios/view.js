@@ -27,6 +27,7 @@ export async function mount(container){
     bindModals();
     bound = true;
   }
+
   const ctx = router.current();
   currentCatId = ctx.parts[1] ? Number(ctx.parts[1]) : null;
   if (currentCatId) await renderSocios(); else await renderCategorias();
@@ -125,7 +126,7 @@ async function openCatModal(mode, id){
   modal.style.display = 'flex';
 }
 
-function openSocioModal(mode, id){
+async function openSocioModal(mode, id){
   const modal = document.getElementById('modalSocio');
   const form = document.getElementById('formSocio');
   if (!modal || !form) return alert('Modal de socio no disponible.');
@@ -134,6 +135,16 @@ function openSocioModal(mode, id){
   form.dataset.id = '';
   const title = document.getElementById('modalSocioTitle');
   if (title) title.textContent = (mode === 'edit' ? 'Editar socio' : 'Nuevo socio');
+
+  if (mode === 'edit' && id){
+    const { data, error } = await act.getSocioById(Number(id));
+    if (error) return alert(error.message);
+    form.dataset.id = String(data.id);
+    form.empresa.value = data.empresa || '';
+    form.titular.value = data.titular || '';
+    form.telefono.value = data.telefono || '';
+    form.direccion.value = data.direccion || '';
+  }
 
   modal.style.display = 'flex';
 }
@@ -172,9 +183,9 @@ async function submitSocio(ev){
   };
   if (!payload.empresa || !payload.titular) return alert('Empresa y Titular son obligatorios');
 
-  const ins = await act.upsertSocio(payload);
-  if (ins.error) return alert(ins.error.message);
-  const newId = ins.data?.id || payload.id;
+  const res = await act.upsertSocio(payload);
+  if (res.error) return alert(res.error.message);
+  const newId = res.data?.id || payload.id;
 
   const file = f.avatar?.files?.[0];
   if (file && newId){
@@ -205,7 +216,7 @@ async function renderCategorias(){
   grid.addEventListener('click', (e) => {
     const card = e.target.closest('.card[data-id]');
     if (!card) return;
-    if (e.target.closest('[data-action]')) return;
+    if (e.target.closest('[data-action]')) return; // si fue click en botón de acción
     router.go(`#/socios/${card.dataset.id}`);
   });
 
@@ -235,4 +246,5 @@ async function renderSocios(){
   }
 }
 
+/* helper local */
 function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
