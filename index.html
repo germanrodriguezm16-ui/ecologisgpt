@@ -30,11 +30,14 @@
     .btn.primary{background:var(--primary); border-color:#2b8a3e; color:#0a140d; font-weight:700}
     .btn.ghost{background:transparent}
     .btn.warn{background:var(--yellow); color:#1a1a1a; border-color:#c6a700}
-    .grid{display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+
+    /* Grid y cards */
+    .grid{display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
     .card{
-      background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px;
+      background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px;
       transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
       will-change: transform, box-shadow;
+      min-height:118px;
     }
     .card:hover{ transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0,0,0,.25); }
     .row{display:flex; justify-content:space-between; gap:8px; align-items:flex-start}
@@ -47,6 +50,7 @@
     .icon{width:18px; height:18px; display:block}
     .icon-btn.edit{ background:var(--blue); border-color:#1357c2; color:#fff }
     .icon-btn.delete{ background:var(--red);  border-color:#b23a37; color:#fff }
+    .icon-btn.config{ background:#6b7280; border-color:#4b5563; color:#fff }
 
     .empty, .error, .loading{color:var(--muted); padding:16px}
     .debug{position:fixed; right:12px; top:12px; background:#09111a; border:1px solid var(--border); padding:8px 10px; border-radius:10px; font-size:12px; color:var(--muted); z-index:99}
@@ -57,7 +61,7 @@
 
     /* Modal */
     .backdrop{position:fixed; inset:0; background:rgb(0 0 0 / .5); display:none; align-items:center; justify-content:center; padding:16px; z-index:50}
-    .modal{background:var(--card); border:1px solid var(--border); border-radius:16px; max-width:640px; width:100%; padding:16px}
+    .modal{background:var(--card); border:1px solid var(--border); border-radius:16px; max-width:720px; width:100%; padding:16px}
     .modal h3{margin:0 0 12px 0}
     .modal .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
     .modal .footer{display:flex; justify-content:flex-end; gap:10px; margin-top:12px}
@@ -72,6 +76,12 @@
     .avatar{width:36px; height:36px; border-radius:999px; object-fit:cover; background:#0e1520; border:1px solid var(--border)}
     .row-flex{display:flex; align-items:center; gap:10px}
     .tag{font-size:11px; color:#0b1a0f; background:var(--primary); border:1px solid #2b8a3e; padding:2px 7px; border-radius:999px}
+
+    /* Tabs en detalle de socio */
+    .tabs{display:flex; gap:8px; border-bottom:1px solid var(--border); margin-bottom:12px}
+    .tab-btn{appearance:none; background:transparent; border:1px solid var(--border); border-bottom:none; padding:8px 12px; border-radius:10px 10px 0 0; cursor:pointer; color:var(--muted)}
+    .tab-btn.active{background:var(--card); color:var(--text); border-color:#2a3a52}
+    .tab-panel{padding:12px; border:1px solid var(--border); border-radius:0 10px 10px 10px; background:var(--card)}
     .drag-ghost{opacity:.6}
   </style>
 
@@ -110,7 +120,7 @@
         <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
         <button class="nav-btn" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="muted" style="margin-top:10px">v1.1 · drag en lista + color socio + confirm modal</div>
+      <div class="muted" style="margin-top:10px">v1.2 · config de categoría + detalle socio</div>
     </aside>
 
     <main>
@@ -122,7 +132,7 @@
     </main>
   </div>
 
-  <!-- Modal Categoría -->
+  <!-- Modal Categoría (crear/editar) -->
   <div class="backdrop" id="modalCat" style="display:none">
     <div class="modal">
       <h3 id="modalTitle">Nueva categoría</h3>
@@ -144,6 +154,29 @@
         </div>
         <div class="modal footer">
           <button type="button" class="btn" id="btnCancelCat">Cancelar</button>
+          <button type="submit" class="btn primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Configuración de Categoría (tab2/tab3) -->
+  <div class="backdrop" id="modalCatConfig" style="display:none">
+    <div class="modal">
+      <h3 id="modalConfigTitle">Configuración de categoría</h3>
+      <form id="formCatConfig">
+        <div class="grid2">
+          <div>
+            <label>Nombre pestaña 2</label>
+            <input name="tab2_name" type="text" placeholder="Notas" />
+          </div>
+          <div>
+            <label>Nombre pestaña 3</label>
+            <input name="tab3_name" type="text" placeholder="Archivos" />
+          </div>
+        </div>
+        <div class="modal footer">
+          <button type="button" class="btn" id="btnCancelCatCfg">Cancelar</button>
           <button type="submit" class="btn primary">Guardar</button>
         </div>
       </form>
@@ -198,7 +231,7 @@
       <p id="confirmMsg" class="muted" style="margin:8px 0 16px">¿Seguro que deseas continuar?</p>
       <div class="modal footer">
         <button type="button" class="btn" id="btnCancelConfirm">Cancelar</button>
-        <button type="button" class="btn primary" id="btnOkConfirm">Eliminar</button>
+        <button type="button" class="btn primary" id="btnOkConfirm">Aceptar</button>
       </div>
     </div>
   </div>
@@ -230,6 +263,7 @@
     /* Layout + vistas */
     var titleEl = $('#title'), viewEl = $('#view'), navEl = $('#nav'), topActions = $('#topActions');
     var currentCat=null, currentCatName='';
+    var currentCatTab2='Notas', currentCatTab3='Archivos';
     var prefView = localStorage.getItem('sociosViewMode') || 'cards';
     var catEditId = null;
     var socioEditId = null;
@@ -289,10 +323,9 @@
       setActive(btn.dataset.view);
     });
 
-    /* Supabase ready */
     function ensureSupabase(){
       if (supabaseClient) return supabaseClient;
-      var url = SUPABASE_URL, key = SUPABASE_ANON_KEY;
+      var url = (window.APP_CONFIG||{}).SUPABASE_URL, key = (window.APP_CONFIG||{}).SUPABASE_ANON_KEY;
       if (!/^https?:\/\//.test(url) || !key) { debug('⚠️ Configura SUPABASE_URL / ANON KEY en config.js'); throw new Error('Supabase no configurado'); }
       supabaseClient = window.supabase.createClient(url, key);
       return supabaseClient;
@@ -322,7 +355,6 @@
       f.balance.value = row?.balance ?? 0;
       $('#modalCat').style.display='flex';
     }
-
     $('#btnCancelCat').addEventListener('click', function(){ $('#modalCat').style.display='none'; catEditId=null; });
 
     $('#formCat').addEventListener('submit', async function(e){
@@ -336,7 +368,7 @@
           var up = await supabaseClient.from('categorias_socios').update({nombre,color,balance}).eq('id', catEditId);
           if(up.error) throw up.error;
         } else {
-          var ins = await supabaseClient.from('categorias_socios').insert([{nombre,color,balance}]);
+          var ins = await supabaseClient.from('categorias_socios').insert([{nombre,color,balance, tab2_name:'Notas', tab3_name:'Archivos'}]);
           if(ins.error) throw ins.error;
         }
         $('#modalCat').style.display='none';
@@ -345,19 +377,57 @@
       }catch(err){ alert(err.message||String(err)); }
     });
 
+    // Modal de configuración (tab2 / tab3)
+    var catCfgId = null;
+    function openCatConfig(row){
+      catCfgId = row.id;
+      $('#modalConfigTitle').textContent = 'Config: ' + (row.nombre||'Categoría');
+      var f = $('#formCatConfig');
+      f.tab2_name.value = row.tab2_name || 'Notas';
+      f.tab3_name.value = row.tab3_name || 'Archivos';
+      $('#modalCatConfig').style.display='flex';
+    }
+    $('#btnCancelCatCfg').addEventListener('click', function(){ $('#modalCatConfig').style.display='none'; catCfgId=null; });
+
+    $('#formCatConfig').addEventListener('submit', async function(e){
+      e.preventDefault();
+      try{
+        ensureSupabase();
+        var f=e.target;
+        var tab2_name = f.tab2_name.value.trim() || 'Notas';
+        var tab3_name = f.tab3_name.value.trim() || 'Archivos';
+        var up = await supabaseClient.from('categorias_socios').update({tab2_name, tab3_name}).eq('id', catCfgId);
+        if(up.error) throw up.error;
+        $('#modalCatConfig').style.display='none'; catCfgId=null;
+        loadCategorias();
+        // si estás dentro de la categoría abierta, actualiza nombres en memoria
+        if(currentCat){
+          // refrescar nombres activos
+          var cat = await getCategoriaById(currentCat);
+          currentCatTab2 = cat?.tab2_name || 'Notas';
+          currentCatTab3 = cat?.tab3_name || 'Archivos';
+          if ($('#socioDetailTabs')) renderSocioDetailTabs(); // si estás en detalle, refresca títulos
+        }
+      }catch(err){ alert(err.message||String(err)); }
+    });
+
     function buildCatCard(row){
       var bg=row.color||'#3ba55d', txt=contrastColor(bg), muted=mutedFor(bg), brd=borderOn(bg);
       var card=el('div',{class:'card',style:{background:bg,borderColor:brd,color:txt}},[]);
       card.setAttribute('data-id',String(row.id||''));
       var top=el('div',{class:'row'},[]), left=el('div',null,[]), actions=el('div',{class:'actions'},[]);
-      var title=el('div',{style:{display:'flex',alignItems:'center',gap:'8px',fontWeight:'700'}},[]);
+      var title=el('div',{style:{display:'flex',alignItems:'center',gap:'8px',fontWeight:'700',fontSize:'16px'}},[]);
       title.appendChild(el('span',{class:'color-dot',style:{background:bg}}));
       title.appendChild(el('span',null,[String(row.nombre||'—')]));
-      var bal=el('div',{style:{marginTop:'6px',color:muted}},['Balance: $'+fmt(row.balance||0)]);
-      left.appendChild(title); left.appendChild(bal);
+      var bal=el('div',{style:{marginTop:'8px',color:muted,fontSize:'13px'}},['Balance: $'+fmt(row.balance||0)]);
+      var tabsInfo=el('div',{class:'muted',style:{marginTop:'6px',fontSize:'12px',opacity:.9}},[
+        'P2: '+(row.tab2_name||'Notas')+' · P3: '+(row.tab3_name||'Archivos')
+      ]);
+      left.appendChild(title); left.appendChild(bal); left.appendChild(tabsInfo);
 
       var ebtn=el('button',{class:'icon-btn edit',title:'Editar',type:'button'},[]); ebtn.innerHTML=pencil();
       var dbtn=el('button',{class:'icon-btn delete',title:'Eliminar',type:'button'},[]); dbtn.innerHTML=trash();
+      var cbtn=el('button',{class:'icon-btn config',title:'Configuración',type:'button'},[]); cbtn.innerHTML=gear();
 
       ebtn.addEventListener('click', function(ev){ ev.stopPropagation(); openCatModal('edit', row); });
       dbtn.addEventListener('click', function(ev){
@@ -369,8 +439,9 @@
           loadCategorias();
         }, 'Eliminar categoría');
       });
+      cbtn.addEventListener('click', function(ev){ ev.stopPropagation(); openCatConfig(row); });
 
-      actions.appendChild(ebtn); actions.appendChild(dbtn);
+      actions.appendChild(ebtn); actions.appendChild(dbtn); actions.appendChild(cbtn);
       top.appendChild(left); top.appendChild(actions); card.appendChild(top);
 
       card.addEventListener('click', function(ev){
@@ -379,6 +450,13 @@
       });
 
       return card;
+    }
+
+    async function getCategoriaById(id){
+      ensureSupabase();
+      var {data, error} = await supabaseClient.from('categorias_socios').select('*').eq('id', id).single();
+      if(error) return null;
+      return data;
     }
 
     async function loadCategorias(){
@@ -421,6 +499,7 @@
 
     function pencil(){return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" stroke-width="1.5"/></svg>';}
     function trash(){return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V4h6v3m-8 3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';}
+    function gear(){return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M12 8.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm7.5 3.5a7.46 7.46 0 0 0-.12-1.3l2.02-1.58-2-3.46-2.42.98A7.52 7.52 0 0 0 14.8 4l-.3-2.6h-5l-.3 2.6a7.52 7.52 0 0 0-2.18 1.14l-2.42-.98-2 3.46 2.02 1.58c-.08.42-.12.86-.12 1.3s.04.88.12 1.3L2.18 14.2l2 3.46 2.42-.98c.66.48 1.4.87 2.18 1.14l.3 2.6h5l.3-2.6c.78-.27 1.52-.66 2.18-1.14l2.42.98 2-3.46-2.02-1.58c.08-.42.12-.86.12-1.3Z" stroke="currentColor" stroke-width="1.2"/></svg>'; }
 
     /* ====== SUBVISTA: SOCIOS ====== */
     function openSociosList(catId, catName){
@@ -442,7 +521,12 @@
       $('#btnNewSocio').addEventListener('click', function(){ openSocioModal(); });
 
       viewEl.appendChild(el('div',{id:'socContent'},['Cargando…']));
-      renderSocios();
+
+      // Cargar nombres de pestañas desde la categoría
+      getCategoriaById(currentCat).then(function(cat){
+        currentCatTab2 = cat?.tab2_name || 'Notas';
+        currentCatTab3 = cat?.tab3_name || 'Archivos';
+      }).finally(renderSocios);
     }
 
     function buildSociosTable(rows){
@@ -471,28 +555,26 @@
           + '</div>';
         tr.appendChild(td5);
 
+        // abrir detalle al hacer click en la fila (excepto botones)
+        tr.addEventListener('click', function(e){
+          if (e.target.closest('.mini-actions')) return;
+          openSocioDetail(r);
+        });
+
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
 
       // acciones
-      $all('[data-edit]', table).forEach(function(b){ b.addEventListener('click', function(){ openSocioModal(rows.find(function(x){return String(x.id)===String(b.getAttribute('data-edit'));})); }); });
-      $all('[data-del]', table).forEach(function(b){ b.addEventListener('click', function(){
-        var id = b.getAttribute('data-del');
-        openConfirm('¿Eliminar este socio?', async function(){
-          ensureSupabase();
-          var {error} = await supabaseClient.from('socios').delete().eq('id', id);
-          if(error) return alert(error.message);
-          renderSocios();
-        }, 'Eliminar socio');
-      }); });
+      $all('[data-edit]', table).forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); openSocioModal(rows.find(function(x){return String(x.id)===String(b.getAttribute('data-edit'));})); }); });
+      $all('[data-del]', table).forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); deleteSocio(b.getAttribute('data-del')); }); });
 
       // Drag & drop en LISTA (tbody)
       if (window.Sortable){
         Sortable.create(tbody, {
           animation:150,
           ghostClass:'drag-ghost',
-          handle: 'td',                // arrastra por cualquier celda
+          handle: 'td',
           filter: '.mini-actions button',
           preventOnFilter: false,
           onEnd: async function(){
@@ -517,7 +599,7 @@
       rows.forEach(function(r){
         var c=document.createElement('div'); c.className='card'; c.setAttribute('data-id', r.id);
 
-        var col = r.card_color || 'var(--card)'; // color de tarjeta de socio
+        var col = r.card_color || 'var(--card)';
         c.style.background = col;
         c.style.borderColor = borderOn(col);
         c.style.color = contrastColor(col);
@@ -544,31 +626,31 @@
         meta.textContent=(r.telefono||'—') + (r.direccion?(' · '+r.direccion):'');
         c.appendChild(meta);
 
+        // abrir detalle al hacer click en la tarjeta (excepto botones)
+        c.addEventListener('click', function(e){
+          if (e.target.closest('.actions')) return;
+          openSocioDetail(r);
+        });
+
         grid.appendChild(c);
       });
 
       // acciones
       $all('[data-edit]', grid).forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); openSocioModal(rows.find(function(x){return String(x.id)===String(b.getAttribute('data-edit'));})); }); });
-      $all('[data-del]', grid).forEach(function(b){ b.addEventListener('click', function(e){
-        e.stopPropagation();
-        var id = b.getAttribute('data-del');
-        openConfirm('¿Eliminar este socio?', async function(){
-          ensureSupabase();
-          var {error} = await supabaseClient.from('socios').delete().eq('id', id);
-          if(error) return alert(error.message);
-          renderSocios();
-        }, 'Eliminar socio');
-      }); });
+      $all('[data-del]', grid).forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); deleteSocio(b.getAttribute('data-del')); }); });
 
       return grid;
     }
 
-    async function fetchSocios(){
+    function fetchSociosQuery(){
       ensureSupabase();
-      var q = supabaseClient.from('socios').select('*').eq('categoria_id', currentCat)
+      return supabaseClient.from('socios').select('*').eq('categoria_id', currentCat)
         .order('orden',{ascending:true,nullsFirst:true})
         .order('created_at',{ascending:false});
-      var {data,error} = await q;
+    }
+
+    async function fetchSocios(){
+      var {data,error} = await fetchSociosQuery();
       if(error){ return {rows:[], error:error}; }
       return {rows:data||[], error:null};
     }
@@ -605,7 +687,78 @@
       }
     }
 
-    /* ====== Modal socio con subida de imagen + color ====== */
+    /* ====== Detalle de socio (tabs) ====== */
+    var socioDetailState = { socio:null, activeTab:'tx' };
+
+    async function openSocioDetail(socio){
+      socioDetailState.socio = socio;
+      socioDetailState.activeTab = 'tx';
+
+      // Asegurar nombres de pestañas actualizados por categoría
+      var cat = await getCategoriaById(socio.categoria_id || currentCat);
+      currentCatTab2 = cat?.tab2_name || 'Notas';
+      currentCatTab3 = cat?.tab3_name || 'Archivos';
+
+      titleEl.textContent = 'Socio · ' + (socio.empresa || '—');
+      topActions.innerHTML = ''
+        + '<button class="btn ghost" id="btnBackSocios" type="button">← Volver a socios</button>'
+        + '<div class="actions-inline"></div>';
+      $('#btnBackSocios').addEventListener('click', function(){ openSociosList(socio.categoria_id || currentCat, currentCatName); });
+
+      // Contenido
+      viewEl.innerHTML = '';
+      var wrap = document.createElement('div');
+
+      // Tabs
+      var tabs = document.createElement('div'); tabs.className='tabs'; tabs.id='socioDetailTabs';
+      tabs.innerHTML = ''
+        + '<button class="tab-btn active" data-tab="tx">Transacciones</button>'
+        + '<button class="tab-btn" data-tab="t2">'+esc(currentCatTab2)+'</button>'
+        + '<button class="tab-btn" data-tab="t3">'+esc(currentCatTab3)+'</button>';
+      wrap.appendChild(tabs);
+
+      // Panel
+      var panel = document.createElement('div'); panel.className='tab-panel'; panel.id='socioDetailPanel';
+      panel.innerHTML = renderSocioDetailPanel('tx', socio);
+      wrap.appendChild(panel);
+
+      // Eventos tabs
+      tabs.addEventListener('click', function(e){
+        var b = e.target.closest('.tab-btn'); if(!b) return;
+        socioDetailState.activeTab = b.getAttribute('data-tab');
+        $all('.tab-btn', tabs).forEach(function(x){ x.classList.toggle('active', x===b); });
+        panel.innerHTML = renderSocioDetailPanel(socioDetailState.activeTab, socio);
+      });
+
+      viewEl.appendChild(wrap);
+    }
+
+    function renderSocioDetailPanel(tab, socio){
+      if (tab==='tx'){
+        return '<div>'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+          + '<div class="muted">Aquí verás las transacciones de <b>'+esc(socio.empresa||'—')+'</b>.</div>'
+          + '<button class="btn primary" type="button" disabled>Agregar transacción</button>'
+          + '</div>'
+          + '<div class="empty">Aún no hay transacciones.</div>'
+          + '</div>';
+      }
+      if (tab==='t2'){
+        return '<div><div class="muted">Pestaña 2: <b>'+esc(currentCatTab2)+'</b> (definido por la categoría).</div><div class="empty" style="margin-top:8px">Sin contenido.</div></div>';
+      }
+      // t3
+      return '<div><div class="muted">Pestaña 3: <b>'+esc(currentCatTab3)+'</b> (definido por la categoría).</div><div class="empty" style="margin-top:8px">Sin contenido.</div></div>';
+    }
+
+    function renderSocioDetailTabs(){
+      var tabs = $('#socioDetailTabs');
+      if(!tabs) return;
+      var btns = $all('.tab-btn', tabs);
+      if (btns[1]) btns[1].textContent = currentCatTab2;
+      if (btns[2]) btns[2].textContent = currentCatTab3;
+    }
+
+    /* ====== Modal socio ====== */
     var socioModal = $('#modalSocio'), socioForm = $('#formSocio');
     $('#btnCancelSocio').addEventListener('click', function(){ socioModal.style.display='none'; socioEditId=null; });
 
