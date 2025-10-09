@@ -1,6 +1,7 @@
 // app/modules/socios/actions.js
 import { getSupabase } from '../../core/supabaseClient.js';
 
+/* CATEGORÍAS */
 export async function listCategorias(){
   const supa = getSupabase(); if(!supa) return {data:[],error:new Error('Supabase no disponible')};
   return supa.from('categorias_socios')
@@ -32,7 +33,7 @@ export async function deleteCategoria(id){
   return supa.from('categorias_socios').delete().eq('id', id);
 }
 
-/* Socios */
+/* SOCIOS */
 export async function listSociosByCategoria(categoria_id){
   const supa = getSupabase(); if(!supa) return {data:[],error:new Error('Supabase no disponible')};
   return supa.from('socios')
@@ -40,6 +41,11 @@ export async function listSociosByCategoria(categoria_id){
     .eq('categoria_id', categoria_id)
     .order('orden',{ascending:true,nullsFirst:true})
     .order('created_at',{ascending:false});
+}
+
+export async function getSocioById(id){
+  const supa = getSupabase(); if(!supa) return {data:null,error:new Error('Supabase no disponible')};
+  return supa.from('socios').select('*').eq('id', id).single();
 }
 
 export async function upsertSocio(payload){
@@ -66,7 +72,8 @@ export async function deleteSocio(id){
 
 export async function uploadAvatar(file, socioId){
   const supa = getSupabase(); if(!supa) return {error:new Error('Supabase no disponible')};
-  const path = `${socioId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+  const safe = (name)=> name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path = `${socioId}/${Date.now()}_${safe(file.name)}`;
   const up = await supa.storage.from('socios').upload(path, file, { upsert:true });
   if (up.error) return up;
   const pub = supa.storage.from('socios').getPublicUrl(path);
