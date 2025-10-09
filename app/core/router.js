@@ -1,35 +1,36 @@
-import { $, $$ } from './utils.js';
-import { store } from './store.js';
+// app/core/router.js
+// Sencillo router basado en hash con handlers de mount/unmount/update por módulo.
+const listeners = new Set();
 
-export function createRouter(routes){
-  let current = null;
+export const router = {
+  current: null,
+  go(hash) {
+    if (location.hash !== hash) location.hash = hash;
+    // forzar dispatch para casos donde el hash sea el mismo
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  },
+  on(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+};
 
-  function updateActive(route){
-    $$('#nav .nav-btn').forEach(b=> b.classList.toggle('active', b.dataset.route===route));
-    const title = route.replace('#/','');
-    $('#title').textContent = title.charAt(0).toUpperCase()+title.slice(1);
-  }
-
-  async function go(route){
-    store.currentRoute = route;
-    updateActive(route);
-    const m = routes[route] || routes['#/404'];
-    if(!m) return;
-    if(current && current.unmount) current.unmount();
-    const root = $('#view');
-    root.innerHTML='';
-    current = m;
-    await m.mount(root, {});
-  }
-
-  function start(){
-    window.addEventListener('hashchange', () => go(location.hash || '#/socios'));
-    $$('#nav .nav-btn').forEach(btn=>btn.addEventListener('click', (e)=>{
-      const r = btn.getAttribute('data-route');
-      location.hash = r;
-    }));
-    go(location.hash || '#/socios');
-  }
-
-  return { start, go };
+function parseHash() {
+  const h = location.hash.replace(/^#/, '');
+  const parts = h.split('/').filter(Boolean);
+  // rutas: ["socios"] | ["socios", ":catId"]
+  return { raw: h, parts };
 }
+
+function notify() {
+  const ctx = parseHash();
+  router.current = ctx;
+  for (const fn of listeners) try { fn(ctx); } catch(e){ console.error('[router] listener error', e); }
+}
+
+window.addEventListener('hashchange', notify);
+window.addEventListener('DOMContentLoaded', () => {
+  // ruta por defecto
+  if (!location.hash) router.go('#/socios');
+  else notify();
+});
+
+export function isRoute(ctx, name){ return ctx.parts[0] === name; }
+export function routeParam(ctx, idx){ return ctx.parts[idx] || null; }
