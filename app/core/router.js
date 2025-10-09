@@ -9,7 +9,7 @@ function parseHash(){
 
 function notify(){
   const ctx = parseHash();
-  listeners.forEach(fn => { try{ fn(ctx); }catch(e){ console.error(e); } });
+  listeners.forEach(fn => { try { fn(ctx); } catch (e) { console.error(e); } });
 }
 
 export const router = {
@@ -19,5 +19,14 @@ export const router = {
   current(){ return parseHash(); }
 };
 
+// Siempre escuchar cambios del hash
 window.addEventListener('hashchange', notify);
-document.addEventListener('DOMContentLoaded', notify);
+
+// Disparos “por si acaso”: si este archivo se carga después de DOMContentLoaded,
+// igual notificamos a los suscriptores inmediatamente.
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  // Ejecuta en el próximo tick para dar tiempo a que se registren los listeners.
+  setTimeout(notify, 0);
+} else {
+  document.addEventListener('DOMContentLoaded', notify);
+}
