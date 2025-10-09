@@ -1,83 +1,120 @@
 // app/modules/socios/actions.js
-import { getSupabase } from '../../core/supabaseClient.js';
+import { getClient } from '../../core/supabaseClient.js';
 
-/* CATEGORÍAS */
-export async function listCategorias(){
-  const supa = getSupabase(); if(!supa) return {data:[],error:new Error('Supabase no disponible')};
-  return supa.from('categorias_socios')
+// --------- CATEGORÍAS ---------
+
+export async function fetchCategorias(){
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from('categorias_socios')
     .select('*')
-    .order('orden',{ascending:true,nullsFirst:true})
-    .order('created_at',{ascending:false});
+    .order('orden', { ascending: true, nullsFirst: true })
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
-export async function getCategoriaById(id){
-  const supa = getSupabase(); if(!supa) return {data:null,error:new Error('Supabase no disponible')};
-  return supa.from('categorias_socios').select('*').eq('id', id).single();
+export async function crearCategoria({ nombre, color = '#3ba55d', balance = 0 }){
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from('categorias_socios')
+    .insert([{ nombre, color, balance }])
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
 }
 
-export async function upsertCategoria(payload){
-  const supa = getSupabase(); if(!supa) return {data:null,error:new Error('Supabase no disponible')};
-  const row = {
-    nombre: payload.nombre,
-    color: payload.color || '#3ba55d',
-    balance: payload.balance ?? 0
-  };
-  if (payload.id){
-    return supa.from('categorias_socios').update(row).eq('id', payload.id);
-  }
-  return supa.from('categorias_socios').insert([row]);
+export async function actualizarCategoria(id, payload){
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from('categorias_socios')
+    .update(payload)
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
 }
 
-export async function deleteCategoria(id){
-  const supa = getSupabase(); if(!supa) return {error:new Error('Supabase no disponible')};
-  return supa.from('categorias_socios').delete().eq('id', id);
+export async function eliminarCategoria(id){
+  const sb = await getClient();
+  const { error } = await sb.from('categorias_socios').delete().eq('id', id);
+  if (error) throw error;
+  return true;
 }
 
-/* SOCIOS */
-export async function listSociosByCategoria(categoria_id){
-  const supa = getSupabase(); if(!supa) return {data:[],error:new Error('Supabase no disponible')};
-  return supa.from('socios')
+export async function guardarOrdenCategorias(ordenItems){
+  // ordenItems: [{ id, orden }, ...]
+  const sb = await getClient();
+  const updates = ordenItems.map(it =>
+    sb.from('categorias_socios').update({ orden: it.orden }).eq('id', it.id)
+  );
+  const results = await Promise.all(updates);
+  const err = results.find(r => r.error)?.error;
+  if (err) throw err;
+  return true;
+}
+
+// --------- SOCIOS ---------
+
+export async function fetchSociosByCategoria(categoria_id){
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from('socios')
     .select('*')
     .eq('categoria_id', categoria_id)
-    .order('orden',{ascending:true,nullsFirst:true})
-    .order('created_at',{ascending:false});
+    .order('orden', { ascending: true, nullsFirst: true })
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
-export async function getSocioById(id){
-  const supa = getSupabase(); if(!supa) return {data:null,error:new Error('Supabase no disponible')};
-  return supa.from('socios').select('*').eq('id', id).single();
+export async function crearSocio(payload){
+  // payload: { categoria_id, empresa*, titular*, telefono, direccion, balance, card_color, avatar_url }
+  const sb = await getClient();
+  const { data, error } = await sb.from('socios').insert([payload]).select('*').single();
+  if (error) throw error;
+  return data;
 }
 
-export async function upsertSocio(payload){
-  const supa = getSupabase(); if(!supa) return {data:null,error:new Error('Supabase no disponible')};
-  const row = {
-    categoria_id: payload.categoria_id,
-    empresa: payload.empresa,
-    titular: payload.titular,
-    telefono: payload.telefono || null,
-    direccion: payload.direccion || null,
-    balance: payload.balance ?? null,
-    card_color: payload.card_color || null
-  };
-  if (payload.id){
-    return supa.from('socios').update(row).eq('id', payload.id);
-  }
-  return supa.from('socios').insert([row]).select('id').single();
+export async function actualizarSocio(id, payload){
+  const sb = await getClient();
+  const { data, error } = await sb.from('socios').update(payload).eq('id', id).select('*').single();
+  if (error) throw error;
+  return data;
 }
 
-export async function deleteSocio(id){
-  const supa = getSupabase(); if(!supa) return {error:new Error('Supabase no disponible')};
-  return supa.from('socios').delete().eq('id', id);
+export async function eliminarSocio(id){
+  const sb = await getClient();
+  const { error } = await sb.from('socios').delete().eq('id', id);
+  if (error) throw error;
+  return true;
 }
 
-export async function uploadAvatar(file, socioId){
-  const supa = getSupabase(); if(!supa) return {error:new Error('Supabase no disponible')};
-  const safe = (name)=> name.replace(/[^a-zA-Z0-9._-]/g,'_');
-  const path = `${socioId}/${Date.now()}_${safe(file.name)}`;
-  const up = await supa.storage.from('socios').upload(path, file, { upsert:true });
-  if (up.error) return up;
-  const pub = supa.storage.from('socios').getPublicUrl(path);
-  const url = pub?.data?.publicUrl;
-  if (url) await supa.from('socios').update({ avatar_url: url }).eq('id', socioId);
-  return { data: { url }, error: null };
+export async function guardarOrdenSocios(ordenItems){
+  const sb = await getClient();
+  const updates = ordenItems.map(it =>
+    sb.from('socios').update({ orden: it.orden }).eq('id', it.id)
+  );
+  const results = await Promise.all(updates);
+  const err = results.find(r => r.error)?.error;
+  if (err) throw err;
+  return true;
+}
+
+// --------- STORAGE: subida de avatar ---------
+
+export async function subirAvatar(socioId, file){
+  if (!file) return null;
+  const sb = await getClient();
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `${socioId}/${Date.now()}_${safeName}`;
+
+  const up = await sb.storage.from('socios').upload(path, file, { upsert: true });
+  if (up.error) throw up.error;
+
+  const pub = sb.storage.from('socios').getPublicUrl(path);
+  return pub?.data?.publicUrl || null;
 }
