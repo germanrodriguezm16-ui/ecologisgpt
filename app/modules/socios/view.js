@@ -1,3 +1,4 @@
+// app/modules/socios/view.js
 import { router } from '../../core/router.js';
 import * as act from './actions.js';
 import * as tpl from './templates.js';
@@ -6,7 +7,7 @@ let root, topActionsEl, contentEl;
 let currentCatId = null;
 let viewMode = localStorage.getItem('sociosViewMode') || 'cards';
 let onClick, onSubmitCat, onSubmitSocio;
-let bound = false; // evita doble binding
+let bound = false;
 
 export async function mount(container){
   root = container;
@@ -26,12 +27,12 @@ export async function mount(container){
     bindModals();
     bound = true;
   }
-
-  await renderCategorias(); // arranque
+  const ctx = router.current();
+  currentCatId = ctx.parts[1] ? Number(ctx.parts[1]) : null;
+  if (currentCatId) await renderSocios(); else await renderCategorias();
 }
 
 export function unmount(){
-  // (si tu router llama unmount) limpiamos
   if (root && onClick){ root.removeEventListener('click', onClick); }
   unbindModals();
   bound = false;
@@ -61,7 +62,7 @@ async function handleClick(e){
     case 'new-cat':       return openCatModal('create');
     case 'edit-cat':      return openCatModal('edit', id);
     case 'delete-cat':    return deleteCat(id);
-    case 'back-to-cats':  currentCatId = null; location.hash = '#/socios'; return;
+    case 'back-to-cats':  currentCatId = null; router.go('#/socios'); return;
     case 'new-socio':     return openSocioModal('create');
     case 'edit-socio':    return openSocioModal('edit', id);
     case 'delete-socio':  return deleteSocio(id);
@@ -76,7 +77,7 @@ function bindModals(){
   const formCat  = document.getElementById('formCat');
   if (modalCat && formCat){
     onSubmitCat = submitCategoria;
-    formCat.removeEventListener('submit', onSubmitCat); // idempotente
+    formCat.removeEventListener('submit', onSubmitCat);
     formCat.addEventListener('submit', onSubmitCat);
     const btnCancelCat = document.getElementById('btnCancelCat');
     if (btnCancelCat) btnCancelCat.onclick = () => modalCat.style.display='none';
@@ -86,7 +87,7 @@ function bindModals(){
   const formSoc  = document.getElementById('formSocio');
   if (modalSoc && formSoc){
     onSubmitSocio = submitSocio;
-    formSoc.removeEventListener('submit', onSubmitSocio); // idempotente
+    formSoc.removeEventListener('submit', onSubmitSocio);
     formSoc.addEventListener('submit', onSubmitSocio);
     const btnCancelSoc = document.getElementById('btnCancelSocio');
     if (btnCancelSoc) btnCancelSoc.onclick = () => modalSoc.style.display='none';
@@ -134,7 +135,6 @@ function openSocioModal(mode, id){
   const title = document.getElementById('modalSocioTitle');
   if (title) title.textContent = (mode === 'edit' ? 'Editar socio' : 'Nuevo socio');
 
-  // Si quieres precargar para editar socio, aquí podrías pedirlo por id y setear campos
   modal.style.display = 'flex';
 }
 
@@ -172,12 +172,10 @@ async function submitSocio(ev){
   };
   if (!payload.empresa || !payload.titular) return alert('Empresa y Titular son obligatorios');
 
-  // upsert
   const ins = await act.upsertSocio(payload);
   if (ins.error) return alert(ins.error.message);
   const newId = ins.data?.id || payload.id;
 
-  // upload avatar opcional
   const file = f.avatar?.files?.[0];
   if (file && newId){
     if (file.size > 2*1024*1024) return alert('El archivo supera 2 MB');
@@ -204,12 +202,11 @@ async function renderCategorias(){
   grid.className = 'grid';
   grid.innerHTML = data.map(tpl.categoriaCard).join('');
 
-  // navegación a socios por categoría (evitando acciones internas)
   grid.addEventListener('click', (e) => {
     const card = e.target.closest('.card[data-id]');
     if (!card) return;
-    if (e.target.closest('[data-action]')) return; // si fue botón de editar/eliminar
-    location.hash = `#/socios/${card.dataset.id}`;
+    if (e.target.closest('[data-action]')) return;
+    router.go(`#/socios/${card.dataset.id}`);
   });
 
   box.innerHTML = '';
@@ -228,8 +225,7 @@ async function renderSocios(){
   if (!data.length){ box.innerHTML = '<div class="empty">No hay socios en esta categoría.</div>'; return; }
 
   if (viewMode === 'list'){
-    // si ya tienes una plantilla de lista, úsala aquí:
-    box.innerHTML = `<div class="grid">${data.map(tpl.socioCard).join('')}</div>`;
+    box.innerHTML = tpl.sociosListTable(data);
   } else {
     const grid = document.createElement('div');
     grid.className = 'grid';
@@ -239,5 +235,4 @@ async function renderSocios(){
   }
 }
 
-/* helpers */
-function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
