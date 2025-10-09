@@ -84,3 +84,9 @@ export async function uploadAvatar(file, socioId) {
   if (url) await sb.from('socios').update({ avatar_url: url }).eq('id', socioId);
   return { url };
 }
+
+// Lee una categoría por id (para precargar modal de editar)
+export async function getCategoriaById(id){
+  const supa = getSupabase();
+  return supa.from('categorias_socios').select('*').eq('id', id).single();
+}
