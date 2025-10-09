@@ -13,7 +13,7 @@
     *{box-sizing:border-box}
     body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--text)}
     .layout{display:grid; grid-template-columns:260px 1fr; min-height:100dvh}
-    aside{background:var(--panel); border-right:1px solid var(--border); padding:16px; position:sticky; top:0; height:100dvh}
+    aside{background:var(--panel); border-right:1px solid var(--border); padding:16px; position:sticky; top:0; height:100dvh; overflow:auto}
     .brand{display:flex; gap:10px; align-items:center; margin-bottom:18px}
     .logo{width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#2b8a3e,var(--primary)); display:grid; place-items:center; font-weight:700}
     .brand h1{font-size:16px; margin:0}
@@ -99,10 +99,16 @@
       <div class="muted" style="margin-top:10px">v0.9 · socios por categoría</div>
     </aside>
 
-    <main id="app"></main>
+    <main>
+      <div class="topbar">
+        <div class="title" id="title">—</div>
+        <div id="topActions" class="actions-inline"></div>
+      </div>
+      <div id="view"></div>
+    </main>
   </div>
 
-  <!-- ✅ MODAL: CATEGORÍA -->
+  <!-- Modal Categoría -->
   <div class="backdrop" id="modalCat" style="display:none">
     <div class="modal">
       <h3 id="modalTitle">Nueva categoría</h3>
@@ -130,7 +136,7 @@
     </div>
   </div>
 
-  <!-- ✅ MODAL: SOCIO -->
+  <!-- Modal Socio (crear/editar) -->
   <div class="backdrop" id="modalSocio" style="display:none">
     <div class="modal">
       <h3 id="modalSocioTitle">Nuevo socio</h3>
@@ -166,11 +172,13 @@
     </div>
   </div>
 
-  <!-- ✅ Scripts -->
+  <!-- Scripts -->
   <script src="config.js"></script>
-  <!-- Librería Supabase -->
+  <!-- Supabase UMD (requerido para getSupabase) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-  <!-- App principal -->
+  <!-- (Opcional) SortableJS si lo usas para drag&drop -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+  <!-- Entrada principal en módulos -->
   <script type="module" src="./app/main.js"></script>
 </body>
 </html>
