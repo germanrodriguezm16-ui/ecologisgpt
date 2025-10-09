@@ -31,7 +31,7 @@
         <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
         <button class="nav-btn" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="muted" style="margin-top:10px">v2.0 · módulos</div>
+      <div class="muted" style="margin-top:10px">v2.2 · paquete 2.0</div>
     </aside>
 
     <main>
@@ -43,7 +43,7 @@
     </main>
   </div>
 
-  <!-- Modal Categoría (crear/editar) -->
+  <!-- Modal Categoría -->
   <div class="backdrop" id="modalCat" style="display:none">
     <div class="modal">
       <h3 id="modalTitle">Nueva categoría</h3>
@@ -71,7 +71,7 @@
     </div>
   </div>
 
-  <!-- Modal Configuración de Categoría (tab2/tab3) -->
+  <!-- Modal Config Categoría -->
   <div class="backdrop" id="modalCatConfig" style="display:none">
     <div class="modal">
       <h3 id="modalConfigTitle">Configuración de categoría</h3>
@@ -94,7 +94,7 @@
     </div>
   </div>
 
-  <!-- Modal Socio (crear/editar) -->
+  <!-- Modal Socio -->
   <div class="backdrop" id="modalSocio" style="display:none">
     <div class="modal">
       <h3 id="modalSocioTitle">Nuevo socio</h3>
@@ -135,17 +135,60 @@
     </div>
   </div>
 
-  <!-- Modal Confirmación genérico -->
-  <div class="backdrop" id="modalConfirm" style="display:none">
+  <!-- Modal Transacción -->
+  <div class="backdrop" id="modalTx" style="display:none">
     <div class="modal">
-      <h3 id="confirmTitle">Confirmar acción</h3>
-      <p id="confirmMsg" class="muted" style="margin:8px 0 16px">¿Seguro que deseas continuar?</p>
-      <div class="modal footer">
-        <button type="button" class="btn" id="btnCancelConfirm">Cancelar</button>
-        <button type="button" class="btn primary" id="btnOkConfirm">Aceptar</button>
-      </div>
+      <h3>Crear transacción</h3>
+      <form id="formTx">
+        <div class="grid2">
+          <div>
+            <label>Origen · Categoría *</label>
+            <select name="ori_cat" required></select>
+          </div>
+          <div>
+            <label>Origen · Socio *</label>
+            <select name="ori_socio" required></select>
+          </div>
+          <div>
+            <label>Destino · Categoría *</label>
+            <select name="des_cat" required></select>
+          </div>
+          <div>
+            <label>Destino · Socio *</label>
+            <select name="des_socio" required></select>
+          </div>
+          <div>
+            <label>Valor *</label>
+            <input name="valor" type="text" inputmode="numeric" placeholder="$ 0" required />
+            <div class="muted" style="margin-top:6px">Se guarda como número; solo es máscara visual.</div>
+          </div>
+          <div>
+            <label>Fecha *</label>
+            <input name="fecha" type="date" required />
+          </div>
+          <div>
+            <label>Comprobante (opcional)</label>
+            <input name="voucher" type="file" accept=".png,.jpg,.jpeg,.pdf" />
+            <div class="actions-inline" style="margin-top:6px">
+              <button type="button" class="btn" id="btnViewVoucher" disabled>👁️ Ver</button>
+              <button type="button" class="btn" id="btnClearVoucher" disabled>Quitar</button>
+            </div>
+          </div>
+          <div>
+            <label>Comentarios *</label>
+            <input name="comentarios" type="text" placeholder="Concepto / comentario" required />
+          </div>
+        </div>
+        <div class="modal footer">
+          <button type="button" class="btn" id="btnCancelTx">Cancelar</button>
+          <button type="submit" class="btn primary">Guardar</button>
+        </div>
+      </form>
     </div>
   </div>
+
+  <!-- FAB (botón flotante) -->
+  <button id="fabTx" class="fab" title="Nueva transacción">💲</button>
 
   <script type="module" src="./js/app.js"></script>
 </body>
