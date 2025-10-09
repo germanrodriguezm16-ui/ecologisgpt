@@ -72,9 +72,10 @@
     .avatar{width:36px; height:36px; border-radius:999px; object-fit:cover; background:#0e1520; border:1px solid var(--border)}
     .row-flex{display:flex; align-items:center; gap:10px}
     .tag{font-size:11px; color:#0b1a0f; background:var(--primary); border:1px solid #2b8a3e; padding:2px 7px; border-radius:999px}
+    .drag-ghost{opacity:.6}
   </style>
 
-  <!-- Config + Sentry (antes de tu código) -->
+  <!-- Config + Sentry -->
   <script src="config.js"></script>
   <script src="https://browser.sentry-cdn.com/8.20.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
   <script>
@@ -84,7 +85,7 @@
     })();
   </script>
 
-  <!-- Sortable (drag & drop) y Supabase UMD -->
+  <!-- SortableJS + Supabase UMD -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 </head>
@@ -109,7 +110,7 @@
         <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
         <button class="nav-btn" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="muted" style="margin-top:10px">v1.0 · baseline</div>
+      <div class="muted" style="margin-top:10px">v1.1 · drag en lista + color socio + confirm modal</div>
     </aside>
 
     <main>
@@ -172,6 +173,11 @@
             <input name="direccion" type="text" placeholder="Calle 123 #45-67" />
           </div>
           <div>
+            <label>Color de tarjeta</label>
+            <input name="card_color" type="color" value="#121a26" />
+            <div class="muted" style="margin-top:6px">Afecta el fondo de la tarjeta del socio.</div>
+          </div>
+          <div>
             <label>Logo / Imagen</label>
             <input name="avatar" type="file" accept=".png,.jpg,.jpeg" />
             <div class="muted" style="margin-top:6px">Opcional. Máx 2 MB.</div>
@@ -185,6 +191,18 @@
     </div>
   </div>
 
+  <!-- Modal Confirmación genérico -->
+  <div class="backdrop" id="modalConfirm" style="display:none">
+    <div class="modal">
+      <h3 id="confirmTitle">Confirmar acción</h3>
+      <p id="confirmMsg" class="muted" style="margin:8px 0 16px">¿Seguro que deseas continuar?</p>
+      <div class="modal footer">
+        <button type="button" class="btn" id="btnCancelConfirm">Cancelar</button>
+        <button type="button" class="btn primary" id="btnOkConfirm">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- App -->
   <script>
   (function(){
@@ -194,13 +212,11 @@
     function debug(msg){ var d=$('#debug'); if(d) d.textContent=String(msg); }
     function esc(s){ return String(s).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
     function fmt(n){ return Number(n||0).toLocaleString('es-CO',{maximumFractionDigits:2}); }
-    function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
     var SUPABASE_URL      = (window.APP_CONFIG && window.APP_CONFIG.SUPABASE_URL)      || "";
     var SUPABASE_ANON_KEY = (window.APP_CONFIG && window.APP_CONFIG.SUPABASE_ANON_KEY) || "";
     var supabaseClient = null;
 
-    /* Contraste */
     function hexToRgb(hex){ hex=String(hex||'').replace('#',''); if(hex.length===3) hex=hex.split('').map(function(x){return x+x;}).join(''); var num=parseInt(hex,16); if(isNaN(num)) return {r:0,g:0,b:0}; return {r:(num>>16)&255,g:(num>>8)&255,b:num&255};}
     function relLum(c){ function ch(v){v/=255; return v<=0.03928? v/12.92 : Math.pow((v+0.055)/1.055,2.4);} return 0.2126*ch(c.r)+0.7152*ch(c.g)+0.0722*ch(c.b);}
     function contrastColor(bg){ var L=relLum(hexToRgb(bg)); return L>0.5?'#000':'#fff'; }
@@ -257,7 +273,6 @@
       if(typeof factory==='function') viewEl.appendChild(factory());
       else viewEl.appendChild(demoCard('Sin contenido'));
 
-      // No dispares carga si supabase aún no está listo
       if(tab==='socios'){
         topActions.innerHTML = '<button class="btn primary" id="btnNuevaCat" type="button">Crear categoría de socios</button>';
         $('#btnNuevaCat')?.addEventListener('click', function(){ openCatModal('create'); });
@@ -274,15 +289,28 @@
       setActive(btn.dataset.view);
     });
 
-    /* Supabase ready gate */
-    async function ensureSupabase(){
+    /* Supabase ready */
+    function ensureSupabase(){
       if (supabaseClient) return supabaseClient;
       var url = SUPABASE_URL, key = SUPABASE_ANON_KEY;
       if (!/^https?:\/\//.test(url) || !key) { debug('⚠️ Configura SUPABASE_URL / ANON KEY en config.js'); throw new Error('Supabase no configurado'); }
-      // UMD ya está cargado (incluido arriba). Creamos cliente.
       supabaseClient = window.supabase.createClient(url, key);
       return supabaseClient;
     }
+
+    /* ========== Modal confirm genérico ========== */
+    var confirmCb = null;
+    function openConfirm(msg, onOk, title){
+      $('#confirmTitle').textContent = title || 'Confirmar acción';
+      $('#confirmMsg').textContent = msg || '¿Seguro que deseas continuar?';
+      confirmCb = (typeof onOk==='function') ? onOk : null;
+      $('#modalConfirm').style.display='flex';
+    }
+    $('#btnCancelConfirm').addEventListener('click', function(){ $('#modalConfirm').style.display='none'; confirmCb=null; });
+    $('#btnOkConfirm').addEventListener('click', function(){
+      var cb=confirmCb; confirmCb=null; $('#modalConfirm').style.display='none';
+      if(cb) cb();
+    });
 
     /* ====== CATEGORÍAS ====== */
     function openCatModal(mode, row){
@@ -303,7 +331,7 @@
         var f=e.target;
         var nombre=f.nombre.value.trim(), color=f.color.value||'#3ba55d', balance=parseFloat(f.balance.value||'0');
         if(!nombre) return alert('Nombre obligatorio');
-        await ensureSupabase();
+        ensureSupabase();
         if (catEditId){
           var up = await supabaseClient.from('categorias_socios').update({nombre,color,balance}).eq('id', catEditId);
           if(up.error) throw up.error;
@@ -332,7 +360,15 @@
       var dbtn=el('button',{class:'icon-btn delete',title:'Eliminar',type:'button'},[]); dbtn.innerHTML=trash();
 
       ebtn.addEventListener('click', function(ev){ ev.stopPropagation(); openCatModal('edit', row); });
-      dbtn.addEventListener('click', function(ev){ ev.stopPropagation(); deleteCategoria(row.id); });
+      dbtn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        openConfirm('¿Eliminar esta categoría? Esta acción no se puede deshacer.', async function(){
+          ensureSupabase();
+          var {error} = await supabaseClient.from('categorias_socios').delete().eq('id', row.id);
+          if(error) return alert(error.message);
+          loadCategorias();
+        }, 'Eliminar categoría');
+      });
 
       actions.appendChild(ebtn); actions.appendChild(dbtn);
       top.appendChild(left); top.appendChild(actions); card.appendChild(top);
@@ -345,17 +381,9 @@
       return card;
     }
 
-    async function deleteCategoria(id){
-      if(!confirm('¿Eliminar esta categoría?')) return;
-      await ensureSupabase();
-      var {error} = await supabaseClient.from('categorias_socios').delete().eq('id', id);
-      if(error) return alert(error.message);
-      loadCategorias();
-    }
-
     async function loadCategorias(){
       try{
-        await ensureSupabase();
+        ensureSupabase();
         var grid=$('#socGrid'); grid.innerHTML='<div class="loading">Cargando categorías…</div>';
         var {data,error} = await supabaseClient
           .from('categorias_socios')
@@ -374,7 +402,7 @@
             ghostClass:'drag-ghost',
             onEnd: async function(){
               try{
-                await ensureSupabase();
+                ensureSupabase();
                 var items = $all('.card', grid).map(function(card, idx){
                   return { id: Number(card.getAttribute('data-id')), orden: idx+1 };
                 });
@@ -393,7 +421,6 @@
 
     function pencil(){return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" stroke-width="1.5"/></svg>';}
     function trash(){return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V4h6v3m-8 3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';}
-
 
     /* ====== SUBVISTA: SOCIOS ====== */
     function openSociosList(catId, catName){
@@ -416,48 +443,6 @@
 
       viewEl.appendChild(el('div',{id:'socContent'},['Cargando…']));
       renderSocios();
-    }
-
-    async function fetchSocios(){
-      await ensureSupabase();
-      var q = supabaseClient.from('socios').select('*').eq('categoria_id', currentCat)
-        .order('orden',{ascending:true,nullsFirst:true})
-        .order('created_at',{ascending:false});
-      var {data,error} = await q;
-      if(error){ return {rows:[], error:error}; }
-      return {rows:data||[], error:null};
-    }
-
-    async function renderSocios(){
-      var cont = $('#socContent'); cont.innerHTML='Cargando…';
-      var r = await fetchSocios();
-      if(r.error){ cont.innerHTML='<div class="error">'+esc(r.error.message)+'</div>'; return; }
-      var rows = r.rows;
-      if(!rows.length){ cont.innerHTML='<div class="empty">No hay socios en esta categoría.</div>'; return; }
-
-      if(prefView==='list'){ cont.innerHTML=''; cont.appendChild(buildSociosTable(rows)); }
-      else { cont.innerHTML=''; cont.appendChild(buildSociosCards(rows)); }
-
-      // Drag & drop socios (solo tarjetas)
-      if (prefView==='cards' && window.Sortable){
-        var grid = $('#socContent .grid');
-        if (grid){
-          Sortable.create(grid, {
-            animation:150,
-            onEnd: async function(){
-              try{
-                await ensureSupabase();
-                var items = $all('.card', grid).map(function(card, idx){
-                  return { id: Number(card.getAttribute('data-id')), orden: idx+1 };
-                });
-                await Promise.all(items.map(function(it){
-                  return supabaseClient.from('socios').update({orden: it.orden}).eq('id', it.id);
-                }));
-              }catch(err){ console.error(err); alert('No se pudo guardar el nuevo orden de socios.'); }
-            }
-          });
-        }
-      }
     }
 
     function buildSociosTable(rows){
@@ -490,8 +475,39 @@
       });
       table.appendChild(tbody);
 
+      // acciones
       $all('[data-edit]', table).forEach(function(b){ b.addEventListener('click', function(){ openSocioModal(rows.find(function(x){return String(x.id)===String(b.getAttribute('data-edit'));})); }); });
-      $all('[data-del]', table).forEach(function(b){ b.addEventListener('click', function(){ deleteSocio(b.getAttribute('data-del')); }); });
+      $all('[data-del]', table).forEach(function(b){ b.addEventListener('click', function(){
+        var id = b.getAttribute('data-del');
+        openConfirm('¿Eliminar este socio?', async function(){
+          ensureSupabase();
+          var {error} = await supabaseClient.from('socios').delete().eq('id', id);
+          if(error) return alert(error.message);
+          renderSocios();
+        }, 'Eliminar socio');
+      }); });
+
+      // Drag & drop en LISTA (tbody)
+      if (window.Sortable){
+        Sortable.create(tbody, {
+          animation:150,
+          ghostClass:'drag-ghost',
+          handle: 'td',                // arrastra por cualquier celda
+          filter: '.mini-actions button',
+          preventOnFilter: false,
+          onEnd: async function(){
+            try{
+              ensureSupabase();
+              var items = $all('tr[data-id]', tbody).map(function(tr, idx){
+                return { id: Number(tr.getAttribute('data-id')), orden: idx+1 };
+              });
+              await Promise.all(items.map(function(it){
+                return supabaseClient.from('socios').update({orden: it.orden}).eq('id', it.id);
+              }));
+            }catch(err){ console.error(err); alert('No se pudo guardar el nuevo orden de socios.'); }
+          }
+        });
+      }
 
       return table;
     }
@@ -501,7 +517,7 @@
       rows.forEach(function(r){
         var c=document.createElement('div'); c.className='card'; c.setAttribute('data-id', r.id);
 
-        var col = r.card_color || 'var(--card)'; // color de tarjeta de socio (si existe)
+        var col = r.card_color || 'var(--card)'; // color de tarjeta de socio
         c.style.background = col;
         c.style.borderColor = borderOn(col);
         c.style.color = contrastColor(col);
@@ -531,13 +547,65 @@
         grid.appendChild(c);
       });
 
+      // acciones
       $all('[data-edit]', grid).forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); openSocioModal(rows.find(function(x){return String(x.id)===String(b.getAttribute('data-edit'));})); }); });
-      $all('[data-del]', grid).forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); deleteSocio(b.getAttribute('data-del')); }); });
+      $all('[data-del]', grid).forEach(function(b){ b.addEventListener('click', function(e){
+        e.stopPropagation();
+        var id = b.getAttribute('data-del');
+        openConfirm('¿Eliminar este socio?', async function(){
+          ensureSupabase();
+          var {error} = await supabaseClient.from('socios').delete().eq('id', id);
+          if(error) return alert(error.message);
+          renderSocios();
+        }, 'Eliminar socio');
+      }); });
 
       return grid;
     }
 
-    /* ====== Modal socio con subida de imagen ====== */
+    async function fetchSocios(){
+      ensureSupabase();
+      var q = supabaseClient.from('socios').select('*').eq('categoria_id', currentCat)
+        .order('orden',{ascending:true,nullsFirst:true})
+        .order('created_at',{ascending:false});
+      var {data,error} = await q;
+      if(error){ return {rows:[], error:error}; }
+      return {rows:data||[], error:null};
+    }
+
+    async function renderSocios(){
+      var cont = $('#socContent'); cont.innerHTML='Cargando…';
+      var r = await fetchSocios();
+      if(r.error){ cont.innerHTML='<div class="error">'+esc(r.error.message)+'</div>'; return; }
+      var rows = r.rows;
+      if(!rows.length){ cont.innerHTML='<div class="empty">No hay socios en esta categoría.</div>'; return; }
+
+      if(prefView==='list'){ cont.innerHTML=''; cont.appendChild(buildSociosTable(rows)); }
+      else { cont.innerHTML=''; cont.appendChild(buildSociosCards(rows)); }
+
+      // Drag & drop socios (tarjetas)
+      if (prefView==='cards' && window.Sortable){
+        var grid = $('#socContent .grid');
+        if (grid){
+          Sortable.create(grid, {
+            animation:150,
+            onEnd: async function(){
+              try{
+                ensureSupabase();
+                var items = $all('.card', grid).map(function(card, idx){
+                  return { id: Number(card.getAttribute('data-id')), orden: idx+1 };
+                });
+                await Promise.all(items.map(function(it){
+                  return supabaseClient.from('socios').update({orden: it.orden}).eq('id', it.id);
+                }));
+              }catch(err){ console.error(err); alert('No se pudo guardar el nuevo orden de socios.'); }
+            }
+          });
+        }
+      }
+    }
+
+    /* ====== Modal socio con subida de imagen + color ====== */
     var socioModal = $('#modalSocio'), socioForm = $('#formSocio');
     $('#btnCancelSocio').addEventListener('click', function(){ socioModal.style.display='none'; socioEditId=null; });
 
@@ -548,6 +616,7 @@
       socioForm.titular.value = (socio && socio.titular) || '';
       socioForm.telefono.value = (socio && socio.telefono) || '';
       socioForm.direccion.value = (socio && socio.direccion) || '';
+      socioForm.card_color.value = (socio && socio.card_color) || '#121a26';
       socioForm.avatar.value = '';
       socioModal.style.display='flex';
     }
@@ -555,19 +624,20 @@
     socioForm.addEventListener('submit', async function(e){
       e.preventDefault();
       try{
-        await ensureSupabase();
+        ensureSupabase();
         var empresa=socioForm.empresa.value.trim();
         var titular=socioForm.titular.value.trim();
         if(!empresa || !titular) return alert('Empresa y Titular son obligatorios');
         var telefono=socioForm.telefono.value.trim();
         var direccion=socioForm.direccion.value.trim();
+        var card_color=socioForm.card_color.value || '#121a26';
 
         let newId = socioEditId;
         if(socioEditId){
-          var up = await supabaseClient.from('socios').update({empresa,titular,telefono,direccion}).eq('id', socioEditId);
+          var up = await supabaseClient.from('socios').update({empresa,titular,telefono,direccion,card_color}).eq('id', socioEditId);
           if(up.error) throw up.error;
         } else {
-          var ins = await supabaseClient.from('socios').insert([{categoria_id: currentCat, empresa, titular, telefono, direccion}]).select('id').single();
+          var ins = await supabaseClient.from('socios').insert([{categoria_id: currentCat, empresa, titular, telefono, direccion, card_color}]).select('id').single();
           if(ins.error) throw ins.error;
           newId = ins.data.id;
         }
@@ -592,21 +662,19 @@
     });
 
     async function deleteSocio(id){
-      if(!confirm('¿Eliminar este socio?')) return;
-      await ensureSupabase();
-      var {error} = await supabaseClient.from('socios').delete().eq('id', id);
-      if(error) return alert(error.message);
-      renderSocios();
+      openConfirm('¿Eliminar este socio?', async function(){
+        ensureSupabase();
+        var {error} = await supabaseClient.from('socios').delete().eq('id', id);
+        if(error) return alert(error.message);
+        renderSocios();
+      }, 'Eliminar socio');
     }
 
     /* Boot */
     document.addEventListener('DOMContentLoaded', function(){
-      // Asegura vista socios al abrir
       setActive('socios');
-      // Inicializa Supabase y luego dispara carga (si ya estás en socios)
-      ensureSupabase().then(function(){
-        if ((location.hash||'#socios').slice(1)==='socios') loadCategorias();
-      }).catch(function(err){ console.error(err); });
+      ensureSupabase();
+      if ((location.hash||'#socios').slice(1)==='socios') loadCategorias();
     });
   })();
   </script>
