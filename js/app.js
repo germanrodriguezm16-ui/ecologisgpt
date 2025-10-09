@@ -1,10 +1,10 @@
-import { $, $all, el, debug } from './utils/dom.js';
+import { $, $all, el } from './utils/dom.js';
 import { loadCategorias } from './views/categorias.js';
 import { openSociosList, handleSocioFormSubmit } from './views/socios.js';
 import { getClient } from './services/supabase.js';
-import { bindConfirm, bindModalCloseButtons, openCatModal, getCatEditId, closeCatModal, getCatCfgId, closeCatConfig } from './ui/modals.js';
+import { bindConfirm, bindModalCloseButtons, openCatModal, getCatEditId, closeCatModal, getCatCfgId, closeCatConfig, openTxModal, handleTxFormSubmit } from './ui/modals.js';
+import { mountTransaccionesView } from './views/transacciones.js';
 
-// Sentry init (optional)
 (function(){
   try{
     const DSN = (window.APP_CONFIG && window.APP_CONFIG.SENTRY_DSN) || '';
@@ -12,13 +12,17 @@ import { bindConfirm, bindModalCloseButtons, openCatModal, getCatEditId, closeCa
   }catch(e){ console.warn('Sentry init skipped', e); }
 })();
 
-// Simple demo views for other modules
 function demoCard(t){ const c=document.createElement('div'); c.className='card'; c.innerHTML='<h3>'+t+'</h3><p class="muted">Vista demo.</p>'; return c; }
 
 function mountView(tab){
   $all('.nav-btn', $('#nav')).forEach(b => b.classList.toggle('active', b.dataset.view===tab));
   $('#title').textContent = tab.charAt(0).toUpperCase()+tab.slice(1);
   $('#view').innerHTML='';
+
+  // Mostrar FAB solo en socios y transacciones
+  const fab = $('#fabTx');
+  fab.style.display = (tab==='socios' || tab==='transacciones') ? 'grid' : 'none';
+
   if (tab==='socios'){
     const root = document.createElement('div');
     root.id='sociosRoot';
@@ -27,9 +31,10 @@ function mountView(tab){
     $('#view').appendChild(root);
     $('#topActions').innerHTML = '<button class="btn primary" id="btnNuevaCat" type="button">Crear categoría de socios</button>';
     $('#btnNuevaCat')?.addEventListener('click', ()=> openCatModal('create'));
-    // ensure supabase
     try { getClient(); } catch(e){ console.error(e); }
     loadCategorias();
+  } else if (tab==='transacciones'){
+    mountTransaccionesView();
   } else {
     $('#topActions').innerHTML='';
     $('#view').appendChild(demoCard(tab));
@@ -43,33 +48,30 @@ function onHashChange(){
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
-  // bind modals
   bindConfirm();
   bindModalCloseButtons();
 
-  // nav
   $('#nav').addEventListener('click', (e)=>{
     const btn = e.target.closest('.nav-btn'); if(!btn) return;
     mountView(btn.dataset.view);
   });
 
-  // forms submit binding
-  // Categoría
+  // Categoría (crear/editar)
   $('#formCat').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const supabase = getClient();
     const f=e.target;
     const nombre=f.nombre.value.trim(), color=f.color.value||'#3ba55d', balance=parseFloat(f.balance.value||'0');
     if(!nombre) return alert('Nombre obligatorio');
-    const catId = getCatEditId();
-    if (catId){
-      const up = await supabase.from('categorias_socios').update({nombre,color,balance}).eq('id', catId);
+    const id = (window.__catEditId || null);
+    if (id){
+      const up = await supabase.from('categorias_socios').update({nombre,color,balance}).eq('id', id);
       if(up.error) return alert(up.error.message);
     } else {
       const ins = await supabase.from('categorias_socios').insert([{nombre,color,balance, tab2_name:'Notas', tab3_name:'Archivos'}]);
       if(ins.error) return alert(ins.error.message);
     }
-    closeCatModal();
+    document.getElementById('modalCat').style.display='none';
     loadCategorias();
   });
 
@@ -80,15 +82,22 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const f=e.target;
     const tab2_name = f.tab2_name.value.trim() || 'Notas';
     const tab3_name = f.tab3_name.value.trim() || 'Archivos';
-    const id = getCatCfgId();
+    const id = (window.__catCfgId || null);
     const up = await supabase.from('categorias_socios').update({tab2_name, tab3_name}).eq('id', id);
     if(up.error) return alert(up.error.message);
-    closeCatConfig();
+    document.getElementById('modalCatConfig').style.display='none';
     loadCategorias();
   });
 
   // Socio
   $('#formSocio').addEventListener('submit', (e)=> handleSocioFormSubmit(e));
+
+  // Transacción
+  $('#btnCancelTx').addEventListener('click', ()=>{ document.getElementById('modalTx').style.display='none'; });
+  $('#formTx').addEventListener('submit', (e)=> handleTxFormSubmit(e));
+
+  // FAB
+  $('#fabTx').addEventListener('click', ()=> openTxModal());
 
   window.addEventListener('hashchange', onHashChange);
   onHashChange();
