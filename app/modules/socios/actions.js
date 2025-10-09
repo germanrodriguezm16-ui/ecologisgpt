@@ -1,11 +1,8 @@
-// app/modules/socios/actions.js
 import { getSupabase } from '../../core/supabaseClient.js';
 
-/* ================= CATEGORÍAS ================= */
 export async function listCategorias() {
   const sb = await getSupabase();
-  const { data, error } = await sb.from('categorias_socios')
-    .select('*')
+  const { data, error } = await sb.from('categorias_socios').select('*')
     .order('orden', { ascending: true, nullsFirst: true })
     .order('created_at', { ascending: false });
   return { data: data || [], error };
@@ -15,22 +12,12 @@ export async function upsertCategoria(payload) {
   const sb = await getSupabase();
   if (payload.id) {
     const { error } = await sb.from('categorias_socios')
-      .update({
-        nombre: payload.nombre,
-        color: payload.color ?? '#3ba55d',
-        balance: payload.balance ?? 0,
-        orden: payload.orden ?? null
-      })
+      .update({ nombre: payload.nombre, color: payload.color ?? '#3ba55d', balance: payload.balance ?? 0, orden: payload.orden ?? null })
       .eq('id', payload.id);
     return { error };
   } else {
     const { data, error } = await sb.from('categorias_socios')
-      .insert([{
-        nombre: payload.nombre,
-        color: payload.color ?? '#3ba55d',
-        balance: payload.balance ?? 0,
-        orden: payload.orden ?? null
-      }])
+      .insert([{ nombre: payload.nombre, color: payload.color ?? '#3ba55d', balance: payload.balance ?? 0, orden: payload.orden ?? null }])
       .select().single();
     return { data, error };
   }
@@ -42,11 +29,9 @@ export async function deleteCategoria(id) {
   return { error };
 }
 
-/* ================= SOCIOS ================= */
 export async function listSociosByCategoria(catId) {
   const sb = await getSupabase();
-  const { data, error } = await sb.from('socios')
-    .select('*')
+  const { data, error } = await sb.from('socios').select('*')
     .eq('categoria_id', catId)
     .order('orden', { ascending: true, nullsFirst: true })
     .order('created_at', { ascending: false });
@@ -58,30 +43,17 @@ export async function upsertSocio(payload) {
   if (payload.id) {
     const { error } = await sb.from('socios')
       .update({
-        empresa: payload.empresa,
-        titular: payload.titular,
-        telefono: payload.telefono ?? null,
-        direccion: payload.direccion ?? null,
-        balance: payload.balance ?? null,
-        card_color: payload.card_color ?? null,
-        avatar_url: payload.avatar_url ?? undefined, // no toques si no viene
-        orden: payload.orden ?? undefined
+        empresa: payload.empresa, titular: payload.titular,
+        telefono: payload.telefono ?? null, direccion: payload.direccion ?? null,
+        balance: payload.balance ?? null, card_color: payload.card_color ?? null,
+        avatar_url: payload.avatar_url ?? undefined, orden: payload.orden ?? undefined
       })
       .eq('id', payload.id);
     return { error };
   } else {
     const { data, error } = await sb.from('socios')
-      .insert([{
-        categoria_id: payload.categoria_id,
-        empresa: payload.empresa,
-        titular: payload.titular,
-        telefono: payload.telefono ?? null,
-        direccion: payload.direccion ?? null,
-        balance: payload.balance ?? null,
-        card_color: payload.card_color ?? null,
-        avatar_url: payload.avatar_url ?? null,
-        orden: payload.orden ?? null
-      }]).select('id').single();
+      .insert([{ categoria_id: payload.categoria_id, empresa: payload.empresa, titular: payload.titular, telefono: payload.telefono ?? null, direccion: payload.direccion ?? null, balance: payload.balance ?? null, card_color: payload.card_color ?? null, avatar_url: payload.avatar_url ?? null, orden: payload.orden ?? null }])
+      .select('id').single();
     return { data, error };
   }
 }
@@ -94,7 +66,6 @@ export async function deleteSocio(id) {
 
 export async function saveSociosOrder(catId, orderedIds) {
   const sb = await getSupabase();
-  // Actualiza en batch los índices
   const updates = orderedIds.map((id, idx) => sb.from('socios').update({ orden: idx }).eq('id', id));
   const results = await Promise.all(updates);
   const error = results.find(r => r.error)?.error || null;
