@@ -1,10 +1,9 @@
-// js/views/socios.js — Paquete 2.0
+// js/views/socios.js — Paquete 1.0 (completo)
 import { $, $all, el, esc } from '../utils/dom.js';
 import { fmt } from '../utils/format.js';
 import { contrastColor, borderOn, initials, mutedFor } from '../utils/colors.js';
 import { getClient, getCategoriaById } from '../services/supabase.js';
 import { openConfirm, openSocioModal } from '../ui/modals.js';
-import { listTransacciones } from '../services/supabase.js';
 
 let currentCat = null;
 let currentCatName = '';
@@ -12,6 +11,7 @@ let currentCatTab2 = 'Notas';
 let currentCatTab3 = 'Archivos';
 let prefView = localStorage.getItem('sociosViewMode') || 'cards';
 
+/* ========== Navegación principal ========== */
 export function openSociosList(catId, catName) {
   currentCat = catId;
   currentCatName = catName || 'Socios';
@@ -37,14 +37,16 @@ export function openSociosList(catId, catName) {
     '</button>' +
     '</div>';
 
-  // Volver a categorías (forzar router si ya estás en #socios)
+  // FIX: botón "Volver" correctamente (hash con #)
   $('#btnBack').addEventListener('click', () => {
-    const prev = window.location.hash;
-    window.location.hash = '#socios';
-    if (prev === '#socios') {
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
-    }
-  });
+  const prev = window.location.hash;
+  window.location.hash = '#socios';
+  // Si ya estabas en #socios, fuerza al router a refrescar categorías:
+  if (prev === '#socios') {
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  }
+});
+
 
   $('#btnList').addEventListener('click', () => {
     prefView = 'list';
@@ -76,6 +78,7 @@ export function openSociosList(catId, catName) {
     .finally(renderSocios);
 }
 
+/* ========== Carga de datos ========== */
 function fetchSociosQuery() {
   const supabase = getClient();
   return supabase
@@ -88,12 +91,11 @@ function fetchSociosQuery() {
 
 async function fetchSocios() {
   const { data, error } = await fetchSociosQuery();
-  if (error) {
-    return { rows: [], error: error };
-  }
+  if (error) return { rows: [], error };
   return { rows: data || [], error: null };
 }
 
+/* ========== Render principal ========== */
 export async function renderSocios() {
   const cont = $('#socContent');
   cont.innerHTML = 'Cargando…';
@@ -109,12 +111,10 @@ export async function renderSocios() {
   }
 
   cont.innerHTML = '';
-  if (prefView === 'list') {
-    cont.appendChild(buildSociosTable(rows));
-  } else {
-    cont.appendChild(buildSociosCards(rows));
-  }
+  if (prefView === 'list') cont.appendChild(buildSociosTable(rows));
+  else cont.appendChild(buildSociosCards(rows));
 
+  // Drag & drop en cards
   if (prefView === 'cards' && window.Sortable) {
     const grid = $('#socContent .grid');
     if (grid) {
@@ -142,6 +142,7 @@ export async function renderSocios() {
   }
 }
 
+/* ========== Cards (con balance y buen contraste) ========== */
 function buildSociosCards(rows) {
   const grid = el('div', { class: 'grid' });
   rows.forEach((r) => {
@@ -156,6 +157,7 @@ function buildSociosCards(rows) {
     });
     c.setAttribute('data-id', r.id);
 
+    // header
     const header = el('div', { class: 'row' });
     const left = el('div', { class: 'row-flex' });
 
@@ -196,6 +198,7 @@ function buildSociosCards(rows) {
     header.appendChild(actions);
     c.appendChild(header);
 
+    // Balance grande (sin teléfono/dirección)
     const balance = el(
       'div',
       {
@@ -210,6 +213,7 @@ function buildSociosCards(rows) {
     );
     c.appendChild(balance);
 
+    // click para detalle (evitar si se toca un botón)
     c.addEventListener('click', (e) => {
       if (e.target.closest('.icon-btn')) return;
       openSocioDetail(r);
@@ -218,6 +222,7 @@ function buildSociosCards(rows) {
     grid.appendChild(c);
   });
 
+  // acciones
   $all('.icon-btn.edit', grid).forEach((b) =>
     b.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -237,6 +242,7 @@ function buildSociosCards(rows) {
   return grid;
 }
 
+/* ========== Lista (con balance incluido) ========== */
 function buildSociosTable(rows) {
   const table = el('table', { class: 'list' });
   const thead = el('thead');
@@ -252,6 +258,7 @@ function buildSociosTable(rows) {
   rows.forEach((r) => {
     const tr = el('tr', { 'data-id': r.id });
 
+    // avatar
     const td0 = el('td');
     const avatar = r.avatar_url
       ? `<img class="avatar" src="${esc(r.avatar_url)}" alt="">`
@@ -284,6 +291,7 @@ function buildSociosTable(rows) {
     tr.appendChild(td5);
     tr.appendChild(td6);
 
+    // click en fila (evita botones)
     tr.addEventListener('click', (e) => {
       if (e.target.closest('.mini-actions')) return;
       openSocioDetail(r);
@@ -293,6 +301,7 @@ function buildSociosTable(rows) {
   });
   table.appendChild(tbody);
 
+  // Drag & drop en lista
   if (window.Sortable) {
     window.Sortable.create(tbody, {
       animation: 150,
@@ -319,6 +328,7 @@ function buildSociosTable(rows) {
     });
   }
 
+  // acciones
   $all('.icon-btn.edit', table).forEach((b) =>
     b.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -338,16 +348,17 @@ function buildSociosTable(rows) {
   return table;
 }
 
+/* ========== Borrado con confirmación (callback modal actual) ========== */
 async function deleteSocio(id) {
   openConfirm('¿Eliminar este socio?', async () => {
     const supabase = getClient();
     const { error } = await supabase.from('socios').delete().eq('id', id);
-    if (error) return alert(error.message);
-    renderSocios();
+    if (error) alert(error.message);
+    else renderSocios();
   }, 'Eliminar socio');
 }
 
-/* ====== Detalle del socio con tabs ====== */
+/* ========== Detalle del socio con tabs (hereda nombres de categoría) ========== */
 export async function openSocioDetail(socio) {
   $('#title').textContent = 'Socio · ' + (socio.empresa || '—');
   $('#topActions').innerHTML =
@@ -377,68 +388,118 @@ export async function openSocioDetail(socio) {
   const panel = document.createElement('div');
   panel.className = 'tab-panel';
   panel.id = 'socioDetailPanel';
+  panel.innerHTML = renderSocioDetailPanel('tx', socio);
 
-  panel.innerHTML = await renderSocioDetailPanel('tx', socio);
-
-  tabs.addEventListener('click', async (e) => {
+  tabs.addEventListener('click', (e) => {
     const b = e.target.closest('.tab-btn');
     if (!b) return;
     const tab = b.getAttribute('data-tab');
     $all('.tab-btn', tabs).forEach((x) => x.classList.toggle('active', x === b));
-    panel.innerHTML = await renderSocioDetailPanel(tab, socio);
+    panel.innerHTML = renderSocioDetailPanel(tab, socio);
   });
 
   wrap.appendChild(tabs);
   wrap.appendChild(panel);
   $('#view').innerHTML = '';
   $('#view').appendChild(wrap);
-
-  // refrescar cuando se cree una
-  const refresh = async ()=>{ panel.innerHTML = await renderSocioDetailPanel('tx', socio); };
-  window.addEventListener('tx:created', refresh, {once:false});
 }
 
-async function renderSocioDetailPanel(tab, socio) {
+function renderSocioDetailPanel(tab, socio) {
   if (tab === 'tx') {
-    // Listar solo las transacciones de este socio (origen o destino)
-    try{
-      const rows = await listTransacciones({socioId: socio.id});
-      if(!rows.length){
-        return '<div class="empty">Este socio aún no tiene transacciones.</div>';
-      }
-      const list = document.createElement('div'); list.className='tx-list';
-      rows.forEach(r=>{
-        const left = el('div',{class:'left'});
-        const date = el('div',{},[r.fecha || '—']);
-        const concept = el('div',{class:'concept'},[`${esc(r.origen?.empresa||'—')} → ${esc(r.destino?.empresa||'—')}${r.comentario ? ' · '+esc(r.comentario) : ''}`]);
-        left.appendChild(date); left.appendChild(concept);
-
-        const right = el('div',{class:'right'},['$ '+fmt(r.valor||0)]);
-        const item = el('div',{class:'tx-item'},[left,right]);
-        list.appendChild(item);
-      });
-      const wrap = document.createElement('div'); wrap.appendChild(list);
-      return wrap.innerHTML;
-    }catch(err){
-      console.error(err);
-      return '<div class="error">No se pudieron cargar las transacciones.</div>';
-    }
+    return (
+      '<div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+      '<div class="muted">Aquí verás las transacciones de <b>' +
+      esc(socio.empresa || '—') +
+      '</b>.</div>' +
+      '<button class="btn primary" type="button" disabled>Agregar transacción</button>' +
+      '</div>' +
+      '<div class="empty">Aún no hay transacciones.</div>' +
+      '</div>'
+    );
   }
   if (tab === 't2') {
     return (
       '<div><div class="muted">Pestaña 2: <b>' +
       esc(currentCatTab2) +
-      '</b> (definida por la categoría).</div><div class="empty" style="margin-top:8px">Sin contenido.</div></div>'
+      '</b> (definido por la categoría).</div><div class="empty" style="margin-top:8px">Sin contenido.</div></div>'
     );
   }
   return (
     '<div><div class="muted">Pestaña 3: <b>' +
     esc(currentCatTab3) +
-    '</b> (definida por la categoría).</div><div class="empty" style="margin-top:8px">Sin contenido.</div></div>'
+    '</b> (definido por la categoría).</div><div class="empty" style="margin-top:8px">Sin contenido.</div></div>'
   );
 }
 
-/* Iconos */
+/* ========== Crear/editar socio + subida de avatar (export requerido por app.js) ========== */
+export async function handleSocioFormSubmit(e) {
+  e.preventDefault();
+  const supabase = getClient();
+  const f = $('#formSocio');
+
+  const empresa = f.empresa.value.trim();
+  const titular = f.titular.value.trim();
+  if (!empresa || !titular) return alert('Empresa y Titular son obligatorios');
+
+  const telefono = f.telefono.value.trim();
+  const direccion = f.direccion.value.trim();
+  const card_color = f.card_color.value || '#121a26';
+
+  let socioId = f.getAttribute('data-edit-id') || null;
+  if (socioId) {
+    const up = await supabase
+      .from('socios')
+      .update({ empresa, titular, telefono, direccion, card_color })
+      .eq('id', socioId);
+    if (up.error) return alert(up.error.message);
+  } else {
+    const ins = await supabase
+      .from('socios')
+      .insert([
+        {
+          categoria_id: currentCat,
+          empresa,
+          titular,
+          telefono,
+          direccion,
+          card_color,
+        },
+      ])
+      .select('id')
+      .single();
+    if (ins.error) return alert(ins.error.message);
+    socioId = ins.data.id;
+  }
+
+  const file = f.avatar.files[0];
+  if (file) {
+    if (file.size > 2 * 1024 * 1024) return alert('El archivo supera 2 MB');
+    const path =
+      socioId +
+      '/' +
+      Date.now() +
+      '_' +
+      file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const up = await supabase.storage.from('socios').upload(path, file, {
+      upsert: true,
+    });
+    if (!up.error) {
+      const pub = supabase.storage.from('socios').getPublicUrl(path);
+      const url = pub?.data?.publicUrl;
+      if (url) {
+        await supabase.from('socios').update({ avatar_url: url }).eq('id', socioId);
+      }
+    } else {
+      alert('Error subiendo imagen: ' + up.error.message);
+    }
+  }
+
+  document.getElementById('modalSocio').style.display = 'none';
+  renderSocios();
+}
+
+/* ========== Iconos ========== */
 function pencil() {
   return `<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" stroke-width="1.5"/></svg>`;
 }
