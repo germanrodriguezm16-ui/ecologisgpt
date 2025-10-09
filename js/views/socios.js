@@ -39,8 +39,14 @@ export function openSociosList(catId, catName) {
 
   // FIX: botón "Volver" correctamente (hash con #)
   $('#btnBack').addEventListener('click', () => {
-    window.location.hash = '#socios';
-  });
+  const prev = window.location.hash;
+  window.location.hash = '#socios';
+  // Si ya estabas en #socios, fuerza al router a refrescar categorías:
+  if (prev === '#socios') {
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  }
+});
+
 
   $('#btnList').addEventListener('click', () => {
     prefView = 'list';
