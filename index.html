@@ -4,53 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ecologist-GPT · Panel</title>
-  <meta name="color-scheme" content="dark light">
-  <!-- Si tienes un CSS global (lo vi en tus capturas como content.css), mantenlo: -->
-  <link rel="stylesheet" href="/content.css" />
-  <style>
-    /* Estilos base por si content.css no está / o para asegurar consistencia */
-    :root{
-      --bg:#0b0f14; --panel:#0f1620; --card:#121a26; --text:#e6edf3;
-      --muted:#9fb0c2; --primary:#3ba55d; --border:#223044; --danger:#d9534f;
-      --blue:#1e76ff; --red:#e4504d; --yellow:#ffda55;
-    }
-    *{box-sizing:border-box}
-    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--text)}
-    a{color:inherit; text-decoration:none}
-    .layout{display:grid; grid-template-columns:260px 1fr; min-height:100dvh}
-    aside{background:var(--panel); border-right:1px solid var(--border); padding:16px; position:sticky; top:0; height:100dvh}
-    .brand{display:flex; gap:10px; align-items:center; margin-bottom:18px}
-    .logo{width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#2b8a3e,var(--primary)); display:grid; place-items:center; font-weight:700}
-    .brand h1{font-size:16px; margin:0}
-    .muted{color:var(--muted); font-size:12px}
-    nav{display:flex; flex-direction:column; gap:6px; margin-top:12px}
-    .nav-btn{appearance:none; border:1px solid var(--border); background:transparent; color:var(--text);
-      text-align:left; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:14px}
-    .nav-btn.active{background:var(--card); border-color:#2a3a52}
-    main{padding:24px}
-    .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:12px; flex-wrap:wrap}
-    .title{font-size:18px; font-weight:700}
-    #topActions{display:flex; gap:8px; flex-wrap:wrap}
-    #view{min-height:60vh}
-    .btn{appearance:none; border:1px solid var(--border); background:var(--card); color:var(--text); padding:10px 12px; border-radius:10px; cursor:pointer}
-    .btn.primary{background:var(--primary); border-color:#2b8a3e; color:#0a140d; font-weight:700}
-    .btn.warn{background:var(--yellow); color:#1a1a1a; border-color:#c6a700}
-
-    /* Modal base */
-    .backdrop{position:fixed; inset:0; background:rgb(0 0 0 / .5); display:none; align-items:center; justify-content:center; padding:16px; z-index:50}
-    .modal{background:var(--card); border:1px solid var(--border); border-radius:16px; max-width:720px; width:100%; padding:16px}
-    .modal h3{margin:0 0 12px 0}
-    .modal .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
-    .modal .footer{display:flex; justify-content:flex-end; gap:10px; margin-top:12px}
-    input[type="text"], input[type="number"], input[type="tel"], input[type="color"]{
-      background:var(--card); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:10px; width:100%
-    }
-    label{font-size:12px; color:var(--muted); display:block; margin-bottom:6px}
-    .error-inline{padding:16px; background:#220c10; border:1px solid #5a1f2a; border-radius:10px; color:#ffb4b4}
-    @media (max-width:900px){ .layout{grid-template-columns:1fr} aside{position:static; height:auto} .modal .grid2{grid-template-columns:1fr} }
-  </style>
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <script src="./config.js"></script>
+  <script src="https://browser.sentry-cdn.com/8.20.0/bundle.tracing.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 </head>
 <body>
+  <div class="debug" id="debug">listo</div>
+
   <div class="layout">
     <aside>
       <div class="brand">
@@ -69,26 +31,26 @@
         <button class="nav-btn" data-view="transacciones">💳 Transacciones</button>
         <button class="nav-btn" data-view="socios">🤝 Socios</button>
       </nav>
-      <div class="muted" style="margin-top:10px">v1.x · baseline</div>
+      <div class="muted" style="margin-top:10px">v2.0 · módulos</div>
     </aside>
 
     <main>
       <div class="topbar">
         <div class="title" id="title">—</div>
-        <div id="topActions"></div>
+        <div id="topActions" class="actions-inline"></div>
       </div>
-      <div id="view">Cargando…</div>
+      <div id="view"></div>
     </main>
   </div>
 
-  <!-- Modal Categoría (crear/editar + config de pestañas) -->
-  <div class="backdrop" id="modalCat" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalCatTitle">
-      <h3 id="modalCatTitle">Nueva categoría</h3>
+  <!-- Modal Categoría (crear/editar) -->
+  <div class="backdrop" id="modalCat" style="display:none">
+    <div class="modal">
+      <h3 id="modalTitle">Nueva categoría</h3>
       <form id="formCat">
         <div class="grid2">
           <div>
-            <label>Nombre *</label>
+            <label>Nombre</label>
             <input name="nombre" type="text" placeholder="Ej: Proveedores" required />
           </div>
           <div>
@@ -96,25 +58,36 @@
             <input name="color" type="color" value="#3ba55d" />
           </div>
         </div>
-
-        <div class="grid2" style="margin-top:12px">
-          <div>
-            <label>Nombre pestaña 2</label>
-            <input name="tab2" type="text" placeholder="Ej: Notas" />
-          </div>
-          <div>
-            <label>Nombre pestaña 3</label>
-            <input name="tab3" type="text" placeholder="Ej: Documentos" />
-          </div>
-        </div>
-
         <div style="margin-top:12px">
           <label>Balance (placeholder)</label>
           <input name="balance" type="number" step="0.01" value="0" />
           <div class="muted" style="margin-top:6px">Luego será calculado automáticamente.</div>
         </div>
         <div class="modal footer">
-          <button type="button" class="btn" data-close="#modalCat">Cancelar</button>
+          <button type="button" class="btn" id="btnCancelCat">Cancelar</button>
+          <button type="submit" class="btn primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Configuración de Categoría (tab2/tab3) -->
+  <div class="backdrop" id="modalCatConfig" style="display:none">
+    <div class="modal">
+      <h3 id="modalConfigTitle">Configuración de categoría</h3>
+      <form id="formCatConfig">
+        <div class="grid2">
+          <div>
+            <label>Nombre pestaña 2</label>
+            <input name="tab2_name" type="text" placeholder="Notas" />
+          </div>
+          <div>
+            <label>Nombre pestaña 3</label>
+            <input name="tab3_name" type="text" placeholder="Archivos" />
+          </div>
+        </div>
+        <div class="modal footer">
+          <button type="button" class="btn" id="btnCancelCatCfg">Cancelar</button>
           <button type="submit" class="btn primary">Guardar</button>
         </div>
       </form>
@@ -122,8 +95,8 @@
   </div>
 
   <!-- Modal Socio (crear/editar) -->
-  <div class="backdrop" id="modalSocio" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalSocioTitle">
+  <div class="backdrop" id="modalSocio" style="display:none">
+    <div class="modal">
       <h3 id="modalSocioTitle">Nuevo socio</h3>
       <form id="formSocio">
         <div class="grid2">
@@ -144,12 +117,9 @@
             <input name="direccion" type="text" placeholder="Calle 123 #45-67" />
           </div>
           <div>
-            <label>Balance</label>
-            <input name="balance" type="number" step="0.01" value="0" />
-          </div>
-          <div>
             <label>Color de tarjeta</label>
-            <input name="card_color" type="color" value="#1e76ff" />
+            <input name="card_color" type="color" value="#121a26" />
+            <div class="muted" style="margin-top:6px">Afecta el fondo de la tarjeta del socio.</div>
           </div>
           <div>
             <label>Logo / Imagen</label>
@@ -158,18 +128,25 @@
           </div>
         </div>
         <div class="modal footer">
-          <button type="button" class="btn" data-close="#modalSocio">Cancelar</button>
+          <button type="button" class="btn" id="btnCancelSocio">Cancelar</button>
           <button type="submit" class="btn primary">Guardar</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- 1) Config con URL/KEY -->
-  <script src="/config.js"></script>
-  <!-- 2) Supabase UMD antes de usarlo -->
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-  <!-- 3) App (módulo). RUTA ABSOLUTA -->
-  <script type="module" src="/app/main.js"></script>
+  <!-- Modal Confirmación genérico -->
+  <div class="backdrop" id="modalConfirm" style="display:none">
+    <div class="modal">
+      <h3 id="confirmTitle">Confirmar acción</h3>
+      <p id="confirmMsg" class="muted" style="margin:8px 0 16px">¿Seguro que deseas continuar?</p>
+      <div class="modal footer">
+        <button type="button" class="btn" id="btnCancelConfirm">Cancelar</button>
+        <button type="button" class="btn primary" id="btnOkConfirm">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
 </body>
 </html>
