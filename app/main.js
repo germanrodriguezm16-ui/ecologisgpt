@@ -17,6 +17,7 @@ function mountView(ctx){
   setActive(section);
   if (!viewEl) return;
 
+  // Limpia y monta
   viewEl.innerHTML = '';
   if (section === 'socios'){
     socios.mount(viewEl);
@@ -29,6 +30,7 @@ function mountView(ctx){
   }
 }
 
+// Navegación lateral
 navEl?.addEventListener('click', (e)=>{
   const btn = e.target.closest('.nav-btn'); if(!btn) return;
   const tab = btn.dataset.view;
@@ -36,21 +38,21 @@ navEl?.addEventListener('click', (e)=>{
   else router.go('#/'+tab);
 });
 
-// Escuchar cambios de ruta
+// Suscribirse a cambios de ruta
 router.on(mountView);
 
-// ⚙️ Fuerza el montaje inicial aunque el evento ya haya ocurrido
+// Fuerza el montaje inicial en cualquier estado del documento
 (function ensureInitialMount(){
-  const ready = document.readyState;
-  if (ready === 'complete' || ready === 'interactive') {
+  const run = () => {
     const ctx = router.current();
-    console.log('[EG] forzando montaje inicial inmediato', ctx);
+    // trazas útiles (si quieres ver en consola)
+    // console.log('[EG] initial mount', ctx);
     mountView(ctx);
+  };
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    // Si ya cargó el DOM, monta inmediatamente (siguiente tick)
+    setTimeout(run, 0);
   } else {
-    window.addEventListener('DOMContentLoaded', () => {
-      const ctx = router.current();
-      console.log('[EG] forzando montaje inicial (DOMContentLoaded)', ctx);
-      mountView(ctx);
-    });
+    window.addEventListener('DOMContentLoaded', run, { once: true });
   }
 })();
