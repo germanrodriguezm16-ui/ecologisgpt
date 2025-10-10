@@ -13,10 +13,13 @@ export function openTransaccionesView(){
   // Abrir y preparar modal (separado para cargar selects y formateo)
   // create FAB (reusable) that opens the modal. If a previous FAB exists, remove it first.
   try{ removeFAB('fabNewTrans'); }catch(_){ }
-  createFAB({ id: 'fabNewTrans', ariaLabel: 'Nueva transacción', title: 'Nueva transacción', onActivate: async ()=>{
-    openTransaccionModal();
-    await prepareTransaccionModal();
-  }});
+  try{
+    console.debug('[Transacciones] creating FAB');
+    createFAB({ id: 'fabNewTrans', ariaLabel: 'Crear transacción', title: 'Crear transacción', onActivate: async ()=>{
+      openTransaccionModal();
+      await prepareTransaccionModal();
+    }});
+  }catch(e){ console.error('[Transacciones] error creating FAB', e); }
 
   const container = el('div', { id: 'transContent' }, ['Cargando…']);
   $('#view').appendChild(container);
