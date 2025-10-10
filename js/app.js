@@ -152,12 +152,23 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
       if (valorInput){
         // Live caret-aware formatting
+        // keydown: permitir entrada explícita de '.' y ',' (algunos navegadores o IMEs pueden bloquear)
+        valorInput.addEventListener('keydown', (e)=>{
+          if (e.key === '.' || e.key === ',') {
+            // dejar que input procese la tecla
+            return;
+          }
+        });
+
+        valorInput.dataset.prevWasDecimal = 'false';
         valorInput.addEventListener('input', (e)=>{
           const cur = e.target;
           const orig = cur.value;
           const selStart = cur.selectionStart;
-          const { value, caret } = formatCurrencyLive(orig, selStart);
+          const prevWasDecimal = cur.dataset.prevWasDecimal === 'true';
+          const { value, caret, isDecimal } = formatCurrencyLive(orig, selStart, prevWasDecimal);
           cur.value = value;
+          cur.dataset.prevWasDecimal = isDecimal ? 'true' : 'false';
           try{ cur.setSelectionRange(caret, caret); }catch(_){ /* ignore */ }
         });
 
@@ -170,8 +181,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
         // blur: aplicar formateo definitivo (usamos formatCurrencyLive para consistencia)
         valorInput.addEventListener('blur', (e)=>{
-          const res = formatCurrencyLive(e.target.value, (e.target.value||'').length);
+          const prevWasDecimal = e.target.dataset.prevWasDecimal === 'true';
+          const res = formatCurrencyLive(e.target.value, (e.target.value||'').length, prevWasDecimal);
           e.target.value = res.value;
+          e.target.dataset.prevWasDecimal = res.isDecimal ? 'true' : 'false';
         });
 
         // inicializar placeholder
