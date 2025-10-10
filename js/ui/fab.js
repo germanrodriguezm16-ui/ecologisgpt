@@ -1,3 +1,53 @@
+// FAB helper: accessible SVG icon, data-shortcut and single global Alt+N handler
+let _globalHandlerRegistered = false;
+
+function moneyPlusSVG(){
+  return `
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+      <rect x="2" y="6" width="20" height="12" rx="2" fill="currentColor" opacity="0.08"></rect>
+      <path d="M8 10h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12 8v8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M18 6v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M20 8h-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
+}
+
+export function createFAB({ id = 'fabNewTrans', ariaLabel = 'Crear transacción', title = 'Crear transacción', dataShortcut = 'Alt+N', onActivate } = {}){
+  if (document.getElementById(id)) return document.getElementById(id);
+  const btn = document.createElement('button');
+  btn.id = id;
+  btn.className = 'fab';
+  btn.type = 'button';
+  btn.setAttribute('aria-label', ariaLabel);
+  btn.setAttribute('title', title);
+  btn.setAttribute('data-shortcut', dataShortcut);
+  btn.innerHTML = moneyPlusSVG();
+
+  btn.addEventListener('click', (e)=>{ e.preventDefault(); if(typeof onActivate === 'function') onActivate(e); });
+  btn.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); btn.click(); } });
+
+  if (!_globalHandlerRegistered){
+    _globalHandlerRegistered = true;
+    document.addEventListener('keydown', (ev)=>{
+      if (ev.altKey && (ev.key === 'n' || ev.key === 'N')){
+        // find first visible FAB and click it
+        const f = document.querySelector('button.fab[data-shortcut="Alt+N"]');
+        if(f){ ev.preventDefault(); f.click(); }
+      }
+    });
+  }
+
+  btn._fabCleanup = ()=>{ try{ btn.remove(); }catch(_){ } };
+  document.body.appendChild(btn);
+  return btn;
+}
+
+export function removeFAB(id = 'fabNewTrans'){
+  const el = document.getElementById(id);
+  if(!el) return;
+  try{ if(typeof el._fabCleanup === 'function') el._fabCleanup(); }catch(_){ }
+}
 // small FAB helper: crea y monta un botón flotante que ejecuta un handler al activarse
 export function createFAB({ id = 'fabNewTrans', ariaLabel = 'Nueva transacción', title = 'Nueva transacción', onActivate } = {}){
   // evita crear duplicados

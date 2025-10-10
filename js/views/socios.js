@@ -3,7 +3,8 @@ import { $, $all, el, esc } from '../utils/dom.js';
 import { fmt } from '../utils/format.js';
 import { contrastColor, borderOn, initials, mutedFor } from '../utils/colors.js';
 import { getClient, getCategoriaById } from '../services/supabase.js';
-import { openConfirm, openSocioModal } from '../ui/modals.js';
+import { openConfirm, openSocioModal, openTransaccionModal } from '../ui/modals.js';
+import { prepareTransaccionModal } from './transacciones.js';
 import { openTransaccionModal, prepareTransaccionModal } from './transacciones.js';
 import { createFAB, removeFAB } from '../ui/fab.js';
 

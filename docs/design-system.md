@@ -1,3 +1,71 @@
+# Design System (mini)
+
+## Principios
+
+- Oscuro moderno: interfaz con alto contraste sobre fondos oscuros, foco en legibilidad.
+- Limpio: componentes minimalistas, padding y espaciado consistentes.
+- Accesible: cumplir AA en contraste y controles teclado/foco visibles.
+
+## Tokens
+
+- Colores (variables):
+  - `--bg: #0b0f14`
+  - `--panel: #0f1628`
+  - `--card: #111827`
+  - `--text: #e5e7eb`
+  - `--muted: #94a3b8`
+  - `--accent: #22c55e`
+  - `--accent-600: #16a34a`
+  - `--accent-700: #15803d`
+  - `--danger: #ef4444`
+  - `--warning: #f59e0b`
+  - `--border: rgba(255,255,255,.08)`
+
+- Tipografía y radios:
+  - `--font: "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
+  - `--radius: 12px`
+  - `--radius-lg: 20px`
+
+- Sombras:
+  - `--shadow-1: 0 6px 18px rgba(0,0,0,.30)`
+  - `--shadow-2: 0 10px 25px rgba(0,0,0,.35)`
+
+- Espaciado:
+  - `--space-2: 8px`
+  - `--space-3: 12px`
+  - `--space-4: 16px`
+  - `--space-6: 24px`
+
+## Componentes base
+
+- Botón (`.btn`, `.btn.primary`): usar `--card`/`--accent` y `--border`, `border-radius: var(--radius)`.
+- Chip: small text, padding `--space-2`/`--space-3`, border-radius `999px`.
+- Tarjeta (`.card`): background `--card`, border `1px solid var(--border)`, padding `--space-4`, border-radius `--radius`.
+
+## Pautas
+
+- No usar estilos inline en componentes; preferir utilidades y tokens.
+- No usar `!important`.
+- Usar siempre variables CSS para colores, radios, espaciados y sombras.
+- Estados: hover/active/focus deben estar claramente definidos.
+
+## Paleta y ejemplos
+
+- Ejemplo de botón primario:
+
+```html
+<button class="btn primary">Guardar</button>
+```
+
+- Ejemplo de FAB:
+
+```html
+<button class="fab" aria-label="Crear transacción" data-shortcut="Alt+N">
+  <!-- svg icon -->
+</button>
+```
+
+Este documento sirve como referencia rápida y como la fuente prioritaria para decisiones de UI en el proyecto.
 # Design system (mini)
 
 ## Principios
