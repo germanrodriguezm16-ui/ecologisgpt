@@ -4,6 +4,7 @@ import { fmt } from '../utils/format.js';
 import { contrastColor, borderOn, initials, mutedFor } from '../utils/colors.js';
 import { getClient, getCategoriaById } from '../services/supabase.js';
 import { openConfirm, openSocioModal } from '../ui/modals.js';
+import { createFAB, removeFAB } from '../ui/fab.js';
 
 let currentCat = null;
 let currentCatName = '';
@@ -102,6 +103,23 @@ export function openSociosList(catId, catName) {
 
   $('#view').appendChild(el('div', { id: 'socContent' }, ['Cargando…']));
 
+  // ensure single FAB for opening nueva transacción in Socios view
+  try{ removeFAB('fabNewTrans'); }catch(_){ }
+  createFAB({ id: 'fabNewTrans', ariaLabel: 'Nueva transacción', title: 'Nueva transacción', onActivate: async ()=>{
+    // lazy-load transacciones view's prepare handler by dispatching to router
+    // use hash to ensure mount if not already
+    if (location.hash !== '#transacciones'){
+      location.hash = '#transacciones';
+      // mountView will create the FAB again in transacciones view; keep this call to open modal after mount
+      // wait a tick for view to mount
+      setTimeout(()=>{
+        const ev = new Event('openTransaccionAfterMount'); window.dispatchEvent(ev);
+      }, 200);
+    } else {
+      // if already in transacciones, trigger open directly via event
+      const ev = new Event('openTransaccionAfterMount'); window.dispatchEvent(ev);
+    }
+  }});
   getCategoriaById(currentCat)
     .then((cat) => {
       currentCatTab2 = cat?.tab2_name || 'Notas';

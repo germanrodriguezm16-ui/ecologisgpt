@@ -1,21 +1,22 @@
 import { $, el, $all, esc } from '../utils/dom.js';
 import { getClient } from '../services/supabase.js';
 import { openTransaccionModal, closeTransaccionModal } from '../ui/modals.js';
+import { createFAB, removeFAB } from '../ui/fab.js';
 
 export function openTransaccionesView(){
   $('#title').textContent = 'Transacciones';
   $('#view').innerHTML = '';
 
-  $('#topActions').innerHTML =
-    '<div style="display:flex;gap:10px;align-items:center">' +
-    '  <button class="btn primary" id="btnNewTrans">Nueva transacción</button>' +
-    '</div>';
+  // Top action previously had a textual button; we hide it in favor of the FAB
+  $('#topActions').innerHTML = '';
 
   // Abrir y preparar modal (separado para cargar selects y formateo)
-  $('#btnNewTrans').addEventListener('click', async ()=> {
+  // create FAB (reusable) that opens the modal. If a previous FAB exists, remove it first.
+  try{ removeFAB('fabNewTrans'); }catch(_){ }
+  createFAB({ id: 'fabNewTrans', ariaLabel: 'Nueva transacción', title: 'Nueva transacción', onActivate: async ()=>{
     openTransaccionModal();
     await prepareTransaccionModal();
-  });
+  }});
 
   const container = el('div', { id: 'transContent' }, ['Cargando…']);
   $('#view').appendChild(container);
@@ -95,10 +96,11 @@ export async function prepareTransaccionModal(){
     origenSel?.addEventListener('change', syncDisable);
     destinoSel?.addEventListener('change', ()=>{ if (origenSel && destinoSel && origenSel.value === destinoSel.value) alert('Origen y destino no pueden ser el mismo socio'); });
 
-    // -------- Fecha picker: mostrar formato DD/MM/YYYY — HH:mm en .fecha-display y permitir abrir picker con el icono
-    const fechaInput = document.querySelector('input[name="fecha"]');
-    const fechaDisplay = document.querySelector('.fecha-display');
-    const btnFecha = document.getElementById('btnFechaPicker');
+  // -------- Fecha picker: mostrar formato DD/MM/YYYY  HH:mm en .fecha-display y permitir abrir picker con el icono
+  const fechaInput = document.querySelector('input[name="fecha"]');
+  const fechaDisplay = document.querySelector('.fecha-display');
+  const btnFecha = document.getElementById('btnFechaPicker');
+  let fpInstance = null; // flatpickr instance if available
 
     // helpers for showing inline field errors
     function showFieldError(fieldName, msg){
@@ -126,10 +128,35 @@ export async function prepareTransaccionModal(){
       const d = new Date(colombiaMillis);
       fechaInput.value = d.toISOString().slice(0,16);
     }
+
+    // Try to initialize flatpickr (datetime) if available. Graceful fallback to native picker.
+    try{
+      if (window.flatpickr && fechaInput){
+        fpInstance = window.flatpickr(fechaInput, {
+          enableTime: true,
+          time_24hr: true,
+          dateFormat: "Y-m-d\TH:i",
+          defaultDate: fechaInput.value || null,
+          onChange: function(selectedDates, dateStr){
+            // dateStr comes formatted as configured (Y-m-dTH:i) matching datetime-local
+            fechaInput.value = dateStr;
+            syncFechaDisplay();
+          }
+        });
+      }
+    }catch(_){ fpInstance = null; }
   // init display
   syncFechaDisplay();
   fechaInput.addEventListener('change', ()=>{ syncFechaDisplay(); });
-  if (btnFecha){ btnFecha.addEventListener('click', (e)=>{ e.preventDefault(); if(!fechaInput) return; if (typeof fechaInput.showPicker === 'function') { try{ fechaInput.showPicker(); }catch(_){ fechaInput.focus(); } } else { fechaInput.focus(); } }); }
+  if (btnFecha){ btnFecha.addEventListener('click', (e)=>{
+    e.preventDefault();
+    if(!fechaInput) return;
+    // If flatpickr instance exists, open it explicitly
+    if (fpInstance && typeof fpInstance.open === 'function') { try{ fpInstance.open(); }catch(_){ /* fallback below */ } return; }
+    if (typeof fechaInput.showPicker === 'function') {
+      try{ fechaInput.showPicker(); }catch(_){ fechaInput.focus(); }
+    } else { fechaInput.focus(); }
+  }); }
 
     // -------- Voucher file handling (temporal hasta submit)
     const btnAdjuntar = document.getElementById('btnAdjuntar');
@@ -387,3 +414,8 @@ export async function handleTransaccionFormSubmit(e){
     errEl.textContent = 'No se pudo crear la transacción: ' + (err.message || String(err));
   }
 }
+
+// Listener to support opening modal after mounting the transacciones view (used by Socios FAB)
+window.addEventListener('openTransaccionAfterMount', async ()=>{
+  try{ openTransaccionModal(); await prepareTransaccionModal(); }catch(_){ }
+});
