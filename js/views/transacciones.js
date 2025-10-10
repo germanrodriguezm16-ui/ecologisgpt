@@ -99,6 +99,18 @@ export async function prepareTransaccionModal(){
     const fechaInput = document.querySelector('input[name="fecha"]');
     const fechaDisplay = document.querySelector('.fecha-display');
     const btnFecha = document.getElementById('btnFechaPicker');
+
+    // helpers for showing inline field errors
+    function showFieldError(fieldName, msg){
+      try{
+        const container = document.getElementById('voucherInfo')?.parentElement || document.getElementById('formTransaccion');
+        if(!container) return;
+        let err = document.getElementById(fieldName + 'Error');
+        if(!err){ err = document.createElement('div'); err.id = fieldName + 'Error'; err.className = 'field-error'; container.appendChild(err); }
+        err.textContent = msg;
+      }catch(_){ }
+    }
+    function clearFieldError(fieldName){ try{ const e = document.getElementById(fieldName + 'Error'); if(e) e.remove(); }catch(_){ } }
     function formatFechaDisplayFromDatetimeLocal(val){
       if(!val) return '';
       const [d,t] = val.split('T'); if(!d || !t) return '';
@@ -114,10 +126,10 @@ export async function prepareTransaccionModal(){
       const d = new Date(colombiaMillis);
       fechaInput.value = d.toISOString().slice(0,16);
     }
-    // init display
-    syncFechaDisplay();
-    fechaInput.addEventListener('change', ()=>{ syncFechaDisplay(); });
-    if (btnFecha){ btnFecha.addEventListener('click', ()=>{ fechaInput.focus(); fechaInput.click(); }); }
+  // init display
+  syncFechaDisplay();
+  fechaInput.addEventListener('change', ()=>{ syncFechaDisplay(); });
+  if (btnFecha){ btnFecha.addEventListener('click', (e)=>{ e.preventDefault(); if(!fechaInput) return; if (typeof fechaInput.showPicker === 'function') { try{ fechaInput.showPicker(); }catch(_){ fechaInput.focus(); } } else { fechaInput.focus(); } }); }
 
     // -------- Voucher file handling (temporal hasta submit)
     const btnAdjuntar = document.getElementById('btnAdjuntar');
@@ -135,9 +147,8 @@ export async function prepareTransaccionModal(){
         fileNameEl.textContent = file.name;
         // show thumbnail for images
         if(/image\//.test(file.type)){
-          const reader = new FileReader();
-          reader.onload = (e)=>{ if(fileThumb) fileThumb.style.backgroundImage = `url(${e.target.result})`; };
-          reader.readAsDataURL(file);
+          const url = file._objUrl || null;
+          if(fileThumb) fileThumb.style.backgroundImage = url ? `url(${url})` : '';
         } else {
           if(fileThumb) fileThumb.style.backgroundImage = '';
         }
@@ -166,11 +177,11 @@ export async function prepareTransaccionModal(){
       showVoucher(f);
     });
     btnRemove?.addEventListener('click', ()=>{
+      // revoke object URL if any and close preview
+      try{ if(selectedVoucherFile && selectedVoucherFile._objUrl) { URL.revokeObjectURL(selectedVoucherFile._objUrl); } }catch(_){ }
       selectedVoucherFile = null;
       if(inputVoucher) inputVoucher.value = '';
       if(voucherInfo) voucherInfo.style.display = 'none';
-      // revoke object URL if any and close preview
-      try{ if(selectedVoucherFile && selectedVoucherFile._objUrl) { URL.revokeObjectURL(selectedVoucherFile._objUrl); } }catch(_){ }
       closePreview();
     });
 
