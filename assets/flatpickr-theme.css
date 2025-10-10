@@ -1,0 +1,49 @@
+/* Minimal flatpickr theme overrides to match the project's dark theme
+   Uses project CSS variables where possible. Keep selectors specific to avoid
+   interfering with other styles. */
+:root{
+  --fp-bg: var(--card, #0f1720);
+  --fp-text: var(--on-card, #e6eef8);
+  --fp-accent: var(--accent, #3ba55d);
+  --fp-muted: rgba(230,238,248,0.65);
+}
+
+/* Container */
+.flatpickr-calendar {
+  background: var(--fp-bg) !important;
+  color: var(--fp-text) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+}
+.flatpickr-weekdaycontainer, .flatpickr-months, .flatpickr-time {
+  color: var(--fp-text) !important;
+}
+.flatpickr-day {
+  color: var(--fp-text) !important;
+  background: transparent !important;
+}
+.flatpickr-day:hover, .flatpickr-day.today {
+  background: rgba(58,165,93,0.12) !important; /* subtle green */
+}
+.flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange {
+  background: var(--fp-accent) !important;
+  color: white !important;
+}
+.flatpickr-time .flatpickr-time-separator,
+.flatpickr-time input { color: var(--fp-text) !important; }
+.flatpickr-input[readonly] { background: transparent; }
+
+/* Buttons */
+.flatpickr-months .flatpickr-prev-month, .flatpickr-months .flatpickr-next-month {
+  color: var(--fp-text) !important;
+}
+.flatpickr-rContainer .flatpickr-confirm {
+  background: var(--fp-accent) !important;
+  color: #fff !important;
+  border: none !important;
+}
+
+/* small responsive tweaks */
+@media (max-width: 420px){
+  .flatpickr-calendar{ font-size: 13px; }
+}

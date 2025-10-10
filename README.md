@@ -46,3 +46,32 @@ Notas para despliegue en Vercel
 Contribuciones y contacto
 
 Si necesitas que haga cambios (mover secrets, añadir toasts, validar uploads), dime cuál opción prefieres y lo implemento.
+
+---
+
+Nota rápida sobre el selector de fecha/hora (Flatpickr)
+
+- El modal de "Nueva transacción" usa Flatpickr para seleccionar fecha y hora.
+- Flatpickr está instalado localmente en `node_modules/flatpickr` y el proyecto carga los archivos desde `./node_modules/flatpickr/dist/`.
+- Se añadió `assets/flatpickr-theme.css` con overrides para adaptar los colores al tema oscuro del panel.
+
+Cómo probarlo localmente:
+
+1. Desde la raíz del proyecto instala dependencias:
+
+```bash
+npm install
+```
+
+2. Sirve la carpeta con un servidor local y abre `http://localhost:8000`:
+
+```bash
+npx http-server . -p 8000
+```
+
+3. En la vista "Transacciones" abre "Nueva transacción" y haz clic en el ícono del calendario.
+
+Notas técnicas:
+
+- Si prefieres que el proyecto no haga referencia directa a `node_modules` desde `index.html`, puedo convertir la inicialización a un import ES module y usar un pequeño bundler o copiar los archivos necesarios a `assets/` durante el build.
+- La inicialización se encuentra en `js/views/transacciones.js` y tiene fallback nativo si Flatpickr no está disponible.
