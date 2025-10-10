@@ -94,6 +94,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
 .file-action{background:transparent;border:none;padding:6px;border-radius:8px;cursor:pointer}
 .file-action.view{color:#7fb7ff}
 .file-action.remove{color:#ff8b8b}
+.fecha-display{margin-left:8px;color:var(--muted);font-size:13px}
+.file-info{display:none;align-items:center;gap:8px}
+.file-thumb{width:36px;height:36px;border-radius:6px;background-size:cover;background-position:center;background-color:#0b0f14;border:1px solid var(--border)}
+.file-name{font-size:13px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .modal-footer{display:flex;justify-content:flex-end;gap:14px;margin-top:18px}
 .btn.cancel{background:#111418;color:#c8d7df;border:1px solid rgba(255,255,255,0.03)}
 .btn.create{background:#00C853;color:#fff;border:none;padding:10px 16px;border-radius:10px;font-weight:700;box-shadow:0 8px 20px rgba(0,200,83,0.12)}

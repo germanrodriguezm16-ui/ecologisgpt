@@ -60,14 +60,7 @@ export async function prepareTransaccionModal(){
       const destinoSel = document.getElementById('destino_socio_id'); if (destinoSel) destinoSel.value = '';
     });
 
-    const fechaInput = document.querySelector('input[name="fecha"]');
-    if (fechaInput && !fechaInput.value){
-      const nowUtc = Date.now();
-      const colombiaOffsetHours = -5;
-      const colombiaMillis = nowUtc + colombiaOffsetHours * 3600_000;
-      const d = new Date(colombiaMillis);
-      fechaInput.value = d.toISOString().slice(0,16);
-    }
+    // fecha default se inicializa al preparar el picker más abajo
 
     const { createCurrencyFSM } = await import('../utils/currency.js');
     const valorInput = document.querySelector('input[name="valor"]');
@@ -101,6 +94,77 @@ export async function prepareTransaccionModal(){
     }
     origenSel?.addEventListener('change', syncDisable);
     destinoSel?.addEventListener('change', ()=>{ if (origenSel && destinoSel && origenSel.value === destinoSel.value) alert('Origen y destino no pueden ser el mismo socio'); });
+
+    // -------- Fecha picker: mostrar formato DD/MM/YYYY — HH:mm en .fecha-display y permitir abrir picker con el icono
+    const fechaInput = document.querySelector('input[name="fecha"]');
+    const fechaDisplay = document.querySelector('.fecha-display');
+    const btnFecha = document.getElementById('btnFechaPicker');
+    function formatFechaDisplayFromDatetimeLocal(val){
+      if(!val) return '';
+      const [d,t] = val.split('T'); if(!d || !t) return '';
+      const [y,m,day] = d.split('-'); const [hh,mm] = t.split(':');
+      return `${day}/${m}/${y} — ${hh}:${mm}`;
+    }
+    function syncFechaDisplay(){ if(fechaDisplay) fechaDisplay.textContent = formatFechaDisplayFromDatetimeLocal(fechaInput.value); }
+    // set default datetime-local to now in Bogota if empty
+    if (fechaInput && !fechaInput.value){
+      const nowUtc = Date.now();
+      const colombiaOffsetHours = -5;
+      const colombiaMillis = nowUtc + colombiaOffsetHours * 3600_000;
+      const d = new Date(colombiaMillis);
+      fechaInput.value = d.toISOString().slice(0,16);
+    }
+    // init display
+    syncFechaDisplay();
+    fechaInput.addEventListener('change', ()=>{ syncFechaDisplay(); });
+    if (btnFecha){ btnFecha.addEventListener('click', ()=>{ fechaInput.focus(); fechaInput.click(); }); }
+
+    // -------- Voucher file handling (temporal hasta submit)
+    const btnAdjuntar = document.getElementById('btnAdjuntar');
+    const inputVoucher = document.getElementById('inputVoucher');
+    const voucherInfo = document.getElementById('voucherInfo');
+    const fileThumb = voucherInfo?.querySelector('.file-thumb');
+    const fileNameEl = voucherInfo?.querySelector('.file-name');
+    const btnRemove = document.getElementById('btnRemoveVoucher');
+    let selectedVoucherFile = null;
+
+    function showVoucher(file){
+      if(!voucherInfo) return;
+      voucherInfo.style.display = 'flex';
+      if(file){
+        fileNameEl.textContent = file.name;
+        // show thumbnail for images
+        if(/image\//.test(file.type)){
+          const reader = new FileReader();
+          reader.onload = (e)=>{ if(fileThumb) fileThumb.style.backgroundImage = `url(${e.target.result})`; };
+          reader.readAsDataURL(file);
+        } else {
+          if(fileThumb) fileThumb.style.backgroundImage = '';
+        }
+      } else {
+        fileNameEl.textContent = '';
+        if(fileThumb) fileThumb.style.backgroundImage = '';
+      }
+    }
+
+    btnAdjuntar?.addEventListener('click', ()=> inputVoucher?.click());
+    inputVoucher?.addEventListener('change', (e)=>{
+      const f = e.target.files && e.target.files[0];
+      if(!f) return;
+      selectedVoucherFile = f;
+      showVoucher(f);
+    });
+    btnRemove?.addEventListener('click', ()=>{
+      selectedVoucherFile = null;
+      if(inputVoucher) inputVoucher.value = '';
+      if(voucherInfo) voucherInfo.style.display = 'none';
+    });
+
+    // Attach selectedVoucherFile to form before submit (store in dataset as temporary name)
+    const form = document.getElementById('formTransaccion');
+    if (form){
+      form._getSelectedVoucher = ()=> selectedVoucherFile;
+    }
 
   }catch(e){ console.warn('No se pudieron cargar selects de transacciones', e); }
 }
@@ -212,6 +276,22 @@ export async function handleTransaccionFormSubmit(e){
 
   try{
     const supabase = getClient();
+    // if there's a selected voucher file attached to the form, upload to storage first
+    const selectedVoucher = (f._getSelectedVoucher && typeof f._getSelectedVoucher === 'function') ? f._getSelectedVoucher() : null;
+    if (selectedVoucher){
+      try{
+        const path = `vouchers/${Date.now()}_${selectedVoucher.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+        const up = await supabase.storage.from('transacciones').upload(path, selectedVoucher, { upsert: false });
+        if (!up.error){
+          const pub = supabase.storage.from('transacciones').getPublicUrl(path);
+          payload.p_voucher_url = pub?.data?.publicUrl || null;
+          payload.p_voucher_type = selectedVoucher.type || null;
+        } else {
+          console.warn('No se pudo subir voucher, procediendo sin él', up.error.message);
+        }
+      }catch(e){ console.warn('Error subiendo voucher', e); }
+    }
+
     const { data, error } = await supabase.rpc('insert_transaccion_and_update_balances', payload);
     if (error) throw error;
     closeTransaccionModal();
