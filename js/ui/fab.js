@@ -16,7 +16,8 @@ function moneyPlusSVG(){
 }
 
 export function createFAB({ id = 'fabNewTrans', ariaLabel = 'Crear transacción', title = 'Crear transacción', dataShortcut = 'Alt+N', onActivate } = {}){
-  if (document.getElementById(id)) return document.getElementById(id);
+  console.debug('[FAB] createFAB called', { id, ariaLabel });
+  if (document.getElementById(id)) { console.debug('[FAB] already exists', id); return document.getElementById(id); }
   const btn = document.createElement('button');
   btn.id = id;
   btn.className = 'fab';
@@ -27,6 +28,7 @@ export function createFAB({ id = 'fabNewTrans', ariaLabel = 'Crear transacción'
   btn.innerHTML = moneyPlusSVG();
 
   btn.addEventListener('click', (e)=>{ e.preventDefault(); if(typeof onActivate === 'function') onActivate(e); });
+  console.debug('[FAB] appended to DOM', id);
   btn.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); btn.click(); } });
 
   if (!window.__EG_FAB_GLOBAL.registered){

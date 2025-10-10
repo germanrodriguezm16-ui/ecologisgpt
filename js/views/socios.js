@@ -107,14 +107,17 @@ export function openSociosList(catId, catName) {
 
   // ensure single FAB for opening nueva transacción in Socios view
   try{ removeFAB('fabNewTrans'); }catch(_){ }
-  createFAB({ id: 'fabNewTrans', ariaLabel: 'Crear transacción', title: 'Crear transacción', onActivate: async ()=>{
-    // Prefer opening the modal directly without navigating away from Socios.
-    try{ openTransaccionModal(); await prepareTransaccionModal(); }catch(err){
-      // fallback: if direct open fails, navigate to transacciones
-      location.hash = '#transacciones';
-      setTimeout(()=>{ window.dispatchEvent(new Event('openTransaccionAfterMount')); }, 200);
-    }
-  }});
+  try{
+    console.debug('[Socios] creating FAB');
+    createFAB({ id: 'fabNewTrans', ariaLabel: 'Crear transacción', title: 'Crear transacción', onActivate: async ()=>{
+      // Prefer opening the modal directly without navigating away from Socios.
+      try{ openTransaccionModal(); await prepareTransaccionModal(); }catch(err){
+        // fallback: if direct open fails, navigate to transacciones
+        location.hash = '#transacciones';
+        setTimeout(()=>{ window.dispatchEvent(new Event('openTransaccionAfterMount')); }, 200);
+      }
+    }});
+  }catch(e){ console.error('[Socios] error creating FAB', e); }
   getCategoriaById(currentCat)
     .then((cat) => {
       currentCatTab2 = cat?.tab2_name || 'Notas';
