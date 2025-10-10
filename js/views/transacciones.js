@@ -226,7 +226,6 @@ export async function prepareTransaccionModal(){
     function createPreviewOverlay(){
       if(previewOverlay) return previewOverlay;
       const ov = document.createElement('div'); ov.className='preview-overlay';
-      ov.style.position='fixed'; ov.style.inset='0'; ov.style.display='flex'; ov.style.alignItems='center'; ov.style.justifyContent='center'; ov.style.zIndex='110'; ov.style.background='rgba(0,0,0,0.6)';
       const box = document.createElement('div'); box.className='preview-box'; box.style.maxWidth='90%'; box.style.maxHeight='90%'; box.style.background='var(--card)'; box.style.borderRadius='10px'; box.style.padding='12px'; box.style.position='relative'; box.style.overflow='auto';
       const closeBtn = document.createElement('button'); closeBtn.textContent='✖'; closeBtn.className='file-action remove'; closeBtn.style.position='absolute'; closeBtn.style.top='8px'; closeBtn.style.right='8px'; box.appendChild(closeBtn);
       const content = document.createElement('div'); content.className='preview-content'; content.style.maxHeight='80vh'; content.style.overflow='auto'; box.appendChild(content);
@@ -243,12 +242,14 @@ export async function prepareTransaccionModal(){
     function showPreviewFor(file){ if(!file) return; const p = createPreviewOverlay(); p.content.innerHTML='';
       if(file.type.startsWith('image/')){
         const img = document.createElement('img'); img.src = file._objUrl || ''; img.style.maxWidth='100%'; img.style.maxHeight='80vh'; img.style.display='block'; p.content.appendChild(img);
-        document.body.appendChild(p.el);
+        if(!document.body.contains(p.el)) document.body.appendChild(p.el);
+        p.el.classList.add('open');
       } else if (file.type === 'application/pdf'){
         // try embed
         const embed = document.createElement('embed'); embed.src = file._objUrl || ''; embed.type = 'application/pdf'; embed.style.width='80vw'; embed.style.height='80vh';
         p.content.appendChild(embed);
-        document.body.appendChild(p.el);
+        if(!document.body.contains(p.el)) document.body.appendChild(p.el);
+        p.el.classList.add('open');
         // fallback: if embed fails, open in new tab
         setTimeout(()=>{
           const emb = p.content.querySelector('embed'); if(emb && emb.clientWidth===0) window.open(file._objUrl,'_blank');
@@ -258,7 +259,7 @@ export async function prepareTransaccionModal(){
         window.open(file._objUrl || '', '_blank');
       }
     }
-    function closePreview(){ if(!previewOverlay) return; try{ document.removeEventListener('keydown', onKeyPreview); previewOverlay.el.remove(); }catch(_){ } previewOverlay=null; }
+    function closePreview(){ if(!previewOverlay) return; try{ document.removeEventListener('keydown', onKeyPreview); previewOverlay.el.classList.remove('open'); if(previewOverlay.el.parentElement) previewOverlay.el.remove(); }catch(_){ } previewOverlay=null; }
 
     // show preview on eye icon
     const eyeBtn = voucherInfo?.querySelector('.file-action.view');
