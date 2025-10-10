@@ -158,15 +158,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
         valorInput.addEventListener('compositionend', (e)=>{ composing = false; 
           // al terminar composición, forzar formateo una vez
           const cur = e.target;
-          const prevWasDecimal = cur.dataset.prevWasDecimal === 'true';
           const selStart = cur.selectionStart;
-          const { value, caret, isDecimal } = formatCurrencyLive(cur.value, selStart, prevWasDecimal);
-          cur.value = value; cur.dataset.prevWasDecimal = isDecimal ? 'true' : 'false';
+          const { value, caret } = formatCurrencyLive(cur.value, selStart);
+          cur.value = value;
           try{ cur.setSelectionRange(caret, caret); }catch(_){ }
         });
 
         // Previene transformaciones violentas si el valor no cambió (por ejemplo por setSelectionRange)
-        valorInput.dataset.prevWasDecimal = 'false';
         valorInput.dataset._prevValue = valorInput.value || '';
         valorInput.addEventListener('input', (e)=>{
           if (composing) return; // dejar que IME termine
@@ -175,10 +173,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
           // si el valor no cambió realmente (puede pasar por setSelectionRange), no formatear
           if (cur.dataset._prevValue === orig) return;
           const selStart = cur.selectionStart;
-          const prevWasDecimal = cur.dataset.prevWasDecimal === 'true';
-          const { value, caret, isDecimal } = formatCurrencyLive(orig, selStart, prevWasDecimal);
+          const { value, caret } = formatCurrencyLive(orig, selStart);
           cur.value = value;
-          cur.dataset.prevWasDecimal = isDecimal ? 'true' : 'false';
           cur.dataset._prevValue = value;
           try{ cur.setSelectionRange(caret, caret); }catch(_){ /* ignore */ }
         });
@@ -192,10 +188,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
         // blur: aplicar formateo definitivo (usamos formatCurrencyLive para consistencia)
         valorInput.addEventListener('blur', (e)=>{
-          const prevWasDecimal = e.target.dataset.prevWasDecimal === 'true';
-          const res = formatCurrencyLive(e.target.value, (e.target.value||'').length, prevWasDecimal);
+          const res = formatCurrencyLive(e.target.value, (e.target.value||'').length);
           e.target.value = res.value;
-          e.target.dataset.prevWasDecimal = res.isDecimal ? 'true' : 'false';
         });
 
         // inicializar placeholder
