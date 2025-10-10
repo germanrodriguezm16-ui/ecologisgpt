@@ -18,8 +18,8 @@ export function formatCurrencyLive(rawValue, caretPos){
 	// Contar dígitos antes del caret en la entrada original (sin separadores)
 	const digitsBeforeCaret = (String(rawValue).slice(0, Math.max(0, caretPos || 0)).match(/\d/g) || []).length;
 
-	const hasComma = allowed.indexOf(',') !== -1;
-	const hasDot = allowed.indexOf('.') !== -1;
+		const hasComma = allowed.indexOf(',') !== -1;
+		const hasDot = allowed.indexOf('.') !== -1;
 	const lastComma = allowed.lastIndexOf(',');
 	const lastDot = allowed.lastIndexOf('.');
 	const lastSepIndex = Math.max(lastComma, lastDot);
@@ -34,16 +34,20 @@ export function formatCurrencyLive(rawValue, caretPos){
 		const sepChar = allowed[lastSepIndex];
 		const after = allowed.slice(lastSepIndex + 1).replace(/[^0-9]/g, '');
 		// Heurística: si existen ambos tipos de separador, asumimos que el último es decimal
-		let treatAsDecimal = false;
-		if (hasComma && hasDot){
-			treatAsDecimal = true; // último separador es decimal
-		} else if (sepChar === ','){
-			// coma es muy probablemente decimal
-			treatAsDecimal = true;
-		} else if (sepChar === '.'){
-			// si hay más de 2 dígitos después del punto, es muy probable que sea separador de miles
-			treatAsDecimal = (after.length <= 2);
-		}
+			let treatAsDecimal = false;
+			// contar todos los dígitos
+			const totalDigits = (allowed.match(/\d/g) || []).length;
+			if (hasComma && hasDot){
+				// si hay ambos, es muy probable que el último sea decimal
+				treatAsDecimal = true;
+			} else if (sepChar === ','){
+				// coma => decimal
+				treatAsDecimal = true;
+			} else if (sepChar === '.'){
+				// punto: por defecto tratar como miles; solo tratar como decimal si el total de dígitos es pequeño (por ejemplo <=3)
+				// esto evita que 85.000 -> (borrar) 85.00 sea interpretado como 85,00
+				treatAsDecimal = (after.length <= 2) && (totalDigits <= 3);
+			}
 
 		if (treatAsDecimal){
 			integerPart = allowed.slice(0, lastSepIndex).replace(/[.,]/g, '');
