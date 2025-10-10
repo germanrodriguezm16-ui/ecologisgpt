@@ -79,13 +79,24 @@ export function closeTransaccionModal(){
 }
 
 /* Generic modal helpers: operate on modal element (which is inside a .backdrop parent in markup) */
-function openModal(modalEl){
+function openModal(el){
   try{
-    if(!modalEl) return console.warn('openModal: modalEl not found');
-    const backdrop = modalEl.parentElement && modalEl.parentElement.classList && modalEl.parentElement.classList.contains('backdrop') ? modalEl.parentElement : null;
-    if(!backdrop) return console.warn('openModal: backdrop not found for modal', modalEl);
-    // add open classes
-    backdrop.classList.add('open');
+    if(!el) return console.warn('openModal: element not found');
+    // normalize: el can be the backdrop or the inner modal
+    let backdrop = null;
+    let modalEl = null;
+    if (el.classList && el.classList.contains('backdrop')){
+      backdrop = el;
+      modalEl = backdrop.querySelector('.modal');
+    } else {
+      modalEl = el;
+      backdrop = modalEl && modalEl.parentElement && modalEl.parentElement.classList && modalEl.parentElement.classList.contains('backdrop') ? modalEl.parentElement : null;
+    }
+    if(!backdrop || !modalEl) return console.warn('openModal: modal or backdrop not found', el);
+  // add open classes
+  backdrop.classList.add('open');
+  // ensure visible even if HTML had inline display:none
+  try{ backdrop.style.display = 'flex'; }catch(_){ }
     modalEl.classList.add('open');
     modalEl.setAttribute('aria-hidden','false');
     // lock scroll
@@ -96,30 +107,42 @@ function openModal(modalEl){
       first?.focus();
     }, 50);
     // backdrop click closes
-    const onBackdropClick = (ev)=>{ if(ev.target === backdrop) closeModal(modalEl); };
+    const onBackdropClick = (ev)=>{ if(ev.target === backdrop) closeModal(backdrop); };
     backdrop.addEventListener('click', onBackdropClick);
     // esc to close
-    const onKey = (ev)=>{ if(ev.key === 'Escape') closeModal(modalEl); };
+    const onKey = (ev)=>{ if(ev.key === 'Escape') closeModal(backdrop); };
     document.addEventListener('keydown', onKey);
-    // store handlers to remove later
-    modalEl._modalHandlers = { backdrop, onBackdropClick, onKey };
+    // store handlers on backdrop to simplify cleanup
+    backdrop._modalHandlers = { modalEl, onBackdropClick, onKey };
   }catch(e){ console.warn('openModal error', e); }
 }
 
-function closeModal(modalEl){
+function closeModal(el){
   try{
-    if(!modalEl) return;
-    const handlers = modalEl._modalHandlers || {};
-    if(handlers.backdrop && handlers.onBackdropClick) handlers.backdrop.removeEventListener('click', handlers.onBackdropClick);
+    if(!el) return;
+    // el may be backdrop or modal element
+    let backdrop = null;
+    let modalEl = null;
+    if (el.classList && el.classList.contains('backdrop')){
+      backdrop = el;
+      modalEl = backdrop.querySelector('.modal');
+    } else {
+      modalEl = el;
+      backdrop = modalEl && modalEl.parentElement && modalEl.parentElement.classList && modalEl.parentElement.classList.contains('backdrop') ? modalEl.parentElement : null;
+    }
+    const handlers = (backdrop && backdrop._modalHandlers) || {};
+    if(handlers.onBackdropClick && backdrop) backdrop.removeEventListener('click', handlers.onBackdropClick);
     if(handlers.onKey) document.removeEventListener('keydown', handlers.onKey);
-    const backdrop = handlers.backdrop || (modalEl.parentElement && modalEl.parentElement.classList && modalEl.parentElement.classList.contains('backdrop') ? modalEl.parentElement : null);
-    if(backdrop) backdrop.classList.remove('open');
-    modalEl.classList.remove('open');
-    modalEl.setAttribute('aria-hidden','true');
+    if(backdrop) {
+      backdrop.classList.remove('open');
+      try{ backdrop.style.display = 'none'; }catch(_){ }
+    }
+    if(modalEl) modalEl.classList.remove('open');
+    if(modalEl) modalEl.setAttribute('aria-hidden','true');
     // restore scroll only if no other backdrop open
     const anyOpen = Array.from(document.querySelectorAll('.backdrop.open')).length > 0;
     if(!anyOpen) document.body.style.overflow = '';
     // remove handlers reference
-    try{ delete modalEl._modalHandlers; }catch(_){ modalEl._modalHandlers = null; }
+    try{ if(backdrop) delete backdrop._modalHandlers; }catch(_){ if(backdrop) backdrop._modalHandlers = null; }
   }catch(e){ console.warn('closeModal error', e); }
 }
