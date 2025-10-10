@@ -142,6 +142,8 @@ function closeModal(el){
     // restore scroll only if no other backdrop open
     const anyOpen = Array.from(document.querySelectorAll('.backdrop.open')).length > 0;
     if(!anyOpen) document.body.style.overflow = '';
+    // dispatch closed event for views to cleanup
+    try{ if(modalEl) modalEl.dispatchEvent(new CustomEvent('modal:closed',{bubbles:true, detail:{backdropId: backdrop && backdrop.id}})); }catch(_){ }
     // remove handlers reference
     try{ if(backdrop) delete backdrop._modalHandlers; }catch(_){ if(backdrop) backdrop._modalHandlers = null; }
   }catch(e){ console.warn('closeModal error', e); }

@@ -98,6 +98,12 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
 .file-info{display:none;align-items:center;gap:8px}
 .file-thumb{width:36px;height:36px;border-radius:6px;background-size:cover;background-position:center;background-color:#0b0f14;border:1px solid var(--border)}
 .file-name{font-size:13px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Preview overlay for voucher (basic) */
+.preview-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:110}
+.preview-box{max-width:90%;max-height:90%;background:var(--card);border-radius:10px;padding:12px;box-shadow:0 12px 32px rgba(0,0,0,0.6);overflow:auto}
+.preview-box img{display:block;max-width:100%;height:auto}
+.preview-box embed{width:80vw;height:80vh}
 .modal-footer{display:flex;justify-content:flex-end;gap:14px;margin-top:18px}
 .btn.cancel{background:#111418;color:#c8d7df;border:1px solid rgba(255,255,255,0.03)}
 .btn.create{background:#00C853;color:#fff;border:none;padding:10px 16px;border-radius:10px;font-weight:700;box-shadow:0 8px 20px rgba(0,200,83,0.12)}

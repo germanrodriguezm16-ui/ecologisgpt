@@ -151,13 +151,27 @@ export async function prepareTransaccionModal(){
     inputVoucher?.addEventListener('change', (e)=>{
       const f = e.target.files && e.target.files[0];
       if(!f) return;
+      // validate type and size (<=5MB)
+      const allowed = ['image/jpeg','image/png','image/jpg','application/pdf'];
+      if (!allowed.includes(f.type)){
+        // mostrar error no intrusivo
+        showFieldError('voucher', 'Tipo de archivo no permitido. Usa JPG/PNG/PDF.');
+        return;
+      }
+      if (f.size > 5 * 1024 * 1024){ showFieldError('voucher', 'El archivo supera 5 MB'); return; }
+      clearFieldError('voucher');
       selectedVoucherFile = f;
+      // create object URL
+      try{ selectedVoucherFile._objUrl = URL.createObjectURL(f); }catch(_){ selectedVoucherFile._objUrl = null; }
       showVoucher(f);
     });
     btnRemove?.addEventListener('click', ()=>{
       selectedVoucherFile = null;
       if(inputVoucher) inputVoucher.value = '';
       if(voucherInfo) voucherInfo.style.display = 'none';
+      // revoke object URL if any and close preview
+      try{ if(selectedVoucherFile && selectedVoucherFile._objUrl) { URL.revokeObjectURL(selectedVoucherFile._objUrl); } }catch(_){ }
+      closePreview();
     });
 
     // Attach selectedVoucherFile to form before submit (store in dataset as temporary name)
@@ -165,6 +179,66 @@ export async function prepareTransaccionModal(){
     if (form){
       form._getSelectedVoucher = ()=> selectedVoucherFile;
     }
+
+    // ---------- Preview overlay logic
+    let previewOverlay = null;
+    function createPreviewOverlay(){
+      if(previewOverlay) return previewOverlay;
+      const ov = document.createElement('div'); ov.className='preview-overlay';
+      ov.style.position='fixed'; ov.style.inset='0'; ov.style.display='flex'; ov.style.alignItems='center'; ov.style.justifyContent='center'; ov.style.zIndex='110'; ov.style.background='rgba(0,0,0,0.6)';
+      const box = document.createElement('div'); box.className='preview-box'; box.style.maxWidth='90%'; box.style.maxHeight='90%'; box.style.background='var(--card)'; box.style.borderRadius='10px'; box.style.padding='12px'; box.style.position='relative'; box.style.overflow='auto';
+      const closeBtn = document.createElement('button'); closeBtn.textContent='✖'; closeBtn.className='file-action remove'; closeBtn.style.position='absolute'; closeBtn.style.top='8px'; closeBtn.style.right='8px'; box.appendChild(closeBtn);
+      const content = document.createElement('div'); content.className='preview-content'; content.style.maxHeight='80vh'; content.style.overflow='auto'; box.appendChild(content);
+      ov.appendChild(box);
+      // handlers
+      function onClose(){ closePreview(); }
+      closeBtn.addEventListener('click', onClose);
+      ov.addEventListener('click', (ev)=>{ if(ev.target === ov) onClose(); });
+      document.addEventListener('keydown', onKeyPreview);
+      previewOverlay = { el: ov, content, handlers: { onClose, onKey: onKeyPreview, closeBtn } };
+      return previewOverlay;
+    }
+    function onKeyPreview(e){ if(e.key === 'Escape') closePreview(); }
+    function showPreviewFor(file){ if(!file) return; const p = createPreviewOverlay(); p.content.innerHTML='';
+      if(file.type.startsWith('image/')){
+        const img = document.createElement('img'); img.src = file._objUrl || ''; img.style.maxWidth='100%'; img.style.maxHeight='80vh'; img.style.display='block'; p.content.appendChild(img);
+        document.body.appendChild(p.el);
+      } else if (file.type === 'application/pdf'){
+        // try embed
+        const embed = document.createElement('embed'); embed.src = file._objUrl || ''; embed.type = 'application/pdf'; embed.style.width='80vw'; embed.style.height='80vh';
+        p.content.appendChild(embed);
+        document.body.appendChild(p.el);
+        // fallback: if embed fails, open in new tab
+        setTimeout(()=>{
+          const emb = p.content.querySelector('embed'); if(emb && emb.clientWidth===0) window.open(file._objUrl,'_blank');
+        }, 300);
+      } else {
+        // fallback open in new tab
+        window.open(file._objUrl || '', '_blank');
+      }
+    }
+    function closePreview(){ if(!previewOverlay) return; try{ document.removeEventListener('keydown', onKeyPreview); previewOverlay.el.remove(); }catch(_){ } previewOverlay=null; }
+
+    // show preview on eye icon
+    const eyeBtn = voucherInfo?.querySelector('.file-action.view');
+    eyeBtn?.addEventListener('click', ()=>{
+      const f = selectedVoucherFile; if(!f) return;
+      showPreviewFor(f);
+    });
+
+    // cleanup on modal close
+    const modalEl = document.getElementById('modalTransaccion');
+    function cleanupOnClose(){
+      // revoke objectURL
+      try{ if(selectedVoucherFile && selectedVoucherFile._objUrl) { URL.revokeObjectURL(selectedVoucherFile._objUrl); } }catch(_){ }
+      selectedVoucherFile = null;
+      if(inputVoucher) inputVoucher.value = '';
+      if(voucherInfo) voucherInfo.style.display = 'none';
+      closePreview();
+      // remove event listeners (best-effort)
+      try{ eyeBtn?.removeEventListener('click', ()=>{}); btnAdjuntar?.removeEventListener('click', ()=>{}); btnRemove?.removeEventListener('click', ()=>{}); inputVoucher?.removeEventListener('change', ()=>{}); }catch(_){ }
+    }
+    modalEl?.addEventListener('modal:closed', cleanupOnClose);
 
   }catch(e){ console.warn('No se pudieron cargar selects de transacciones', e); }
 }
