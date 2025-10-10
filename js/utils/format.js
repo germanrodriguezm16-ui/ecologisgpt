@@ -7,7 +7,8 @@ export function fmt(n){ return Number(n||0).toLocaleString('es-CO',{maximumFract
 // - limita a 2 decimales
 // - preserva la posición del caret (cursor) lo mejor posible
 // Uso: on input -> const {value, caret} = formatCurrencyLive(el.value, el.selectionStart); el.value = value; el.setSelectionRange(caret, caret);
-export function formatCurrencyLive(rawValue, caretPos){
+// prevWasDecimal: optional boolean indicating whether previous value was treated as decimal
+export function formatCurrencyLive(rawValue, caretPos, prevWasDecimal = false){
 	if (rawValue == null) rawValue = '';
 	// permitir solo dígitos, comas y puntos
 	const allowed = String(rawValue).replace(/[^0-9.,]/g, '');
@@ -18,8 +19,8 @@ export function formatCurrencyLive(rawValue, caretPos){
 	// Contar dígitos antes del caret en la entrada original (sin separadores)
 	const digitsBeforeCaret = (String(rawValue).slice(0, Math.max(0, caretPos || 0)).match(/\d/g) || []).length;
 
-		const hasComma = allowed.indexOf(',') !== -1;
-		const hasDot = allowed.indexOf('.') !== -1;
+			const hasComma = allowed.indexOf(',') !== -1;
+			const hasDot = allowed.indexOf('.') !== -1;
 	const lastComma = allowed.lastIndexOf(',');
 	const lastDot = allowed.lastIndexOf('.');
 	const lastSepIndex = Math.max(lastComma, lastDot);
@@ -27,27 +28,28 @@ export function formatCurrencyLive(rawValue, caretPos){
 	let integerPart = '';
 	let decimalPart = '';
 
-	if (lastSepIndex === -1){
+		if (lastSepIndex === -1){
 		// no hay separador, todo son dígitos
 		integerPart = allowed.replace(/[.,]/g, '');
 	} else {
 		const sepChar = allowed[lastSepIndex];
 		const after = allowed.slice(lastSepIndex + 1).replace(/[^0-9]/g, '');
 		// Heurística: si existen ambos tipos de separador, asumimos que el último es decimal
-			let treatAsDecimal = false;
+				let treatAsDecimal = false;
 			// contar todos los dígitos
 			const totalDigits = (allowed.match(/\d/g) || []).length;
-			if (hasComma && hasDot){
-				// si hay ambos, es muy probable que el último sea decimal
-				treatAsDecimal = true;
-			} else if (sepChar === ','){
-				// coma => decimal
-				treatAsDecimal = true;
-			} else if (sepChar === '.'){
-				// punto: por defecto tratar como miles; solo tratar como decimal si el total de dígitos es pequeño (por ejemplo <=3)
-				// esto evita que 85.000 -> (borrar) 85.00 sea interpretado como 85,00
-				treatAsDecimal = (after.length <= 2) && (totalDigits <= 3);
-			}
+				if (hasComma && hasDot){
+					// si hay ambos, es muy probable que el último sea decimal
+					treatAsDecimal = true;
+				} else if (sepChar === ','){
+					// coma => decimal
+					treatAsDecimal = true;
+				} else if (sepChar === '.'){
+					// punto: por defecto tratar como miles;
+					// si previamente ya estabamos en modo decimal, respetarlo (prevWasDecimal)
+					// solo tratar como decimal si el total de dígitos es pequeño (por ejemplo <=3)
+					treatAsDecimal = prevWasDecimal || ((after.length <= 2) && (totalDigits <= 3));
+				}
 
 		if (treatAsDecimal){
 			integerPart = allowed.slice(0, lastSepIndex).replace(/[.,]/g, '');
@@ -66,19 +68,42 @@ export function formatCurrencyLive(rawValue, caretPos){
 	// Formatear integerPart con separador de miles '.'
 	const intWithDots = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
-	const formatted = decimalPart ? (intWithDots + ',' + decimalPart) : intWithDots;
+		const formatted = decimalPart ? (intWithDots + ',' + decimalPart) : intWithDots;
+			// Mapear caret con correspondencia índice-a-índice para mayor precisión
+			function mapCaretExact(raw, formatted, origCaret){
+				// índices de dígitos en raw y formatted
+				const rawDigitIdxs = [];
+				for (let i=0;i<raw.length;i++) if (/\d/.test(raw[i])) rawDigitIdxs.push(i);
+				const fmtDigitIdxs = [];
+				for (let i=0;i<formatted.length;i++) if (/\d/.test(formatted[i])) fmtDigitIdxs.push(i);
 
-	// Mapear caret: colocar el caret después de digitsBeforeCaret en el string formateado
-	let newCaret = formatted.length;
-	if (typeof digitsBeforeCaret === 'number'){
-		let digitsSeen = 0;
-		let pos = 0;
-		for (; pos < formatted.length; pos++){
-			if (/[0-9]/.test(formatted[pos])) digitsSeen++;
-			if (digitsSeen >= digitsBeforeCaret) { pos++; break; }
-		}
-		if (pos <= formatted.length) newCaret = pos;
-	}
+				// detectar separador decimal en raw (coma o punto) y en formatted (coma)
+				const rawLastComma = raw.lastIndexOf(',');
+				const rawLastDot = raw.lastIndexOf('.');
+				const rawDecSep = Math.max(rawLastComma, rawLastDot);
+				const formattedDecSep = formatted.indexOf(',');
 
-	return { value: formatted, caret: newCaret };
+				// Si el caret estaba en la parte decimal del raw, mapear respecto a la parte decimal
+				if (rawDecSep !== -1 && origCaret > rawDecSep){
+					const decimalDigitsBefore = rawDigitIdxs.filter(idx => idx > rawDecSep && idx < origCaret).length;
+					if (formattedDecSep !== -1){
+						const pos = formattedDecSep + 1 + decimalDigitsBefore;
+						return Math.min(pos, formatted.length);
+					}
+				}
+
+				// De lo contrario mapear por número de dígitos antes del caret
+				const digitsBefore = rawDigitIdxs.filter(idx => idx < origCaret).length;
+				if (digitsBefore === 0){
+					// colocar antes del primer dígito (si existe) o al inicio
+					return fmtDigitIdxs.length ? fmtDigitIdxs[0] : 0;
+				}
+				// colocar después del dígito correspondiente
+				const targetIdx = fmtDigitIdxs[Math.min(digitsBefore-1, fmtDigitIdxs.length-1)];
+				if (typeof targetIdx === 'number') return Math.min(targetIdx+1, formatted.length);
+				return formatted.length;
+			}
+
+			const newCaret = mapCaretExact(String(rawValue), formatted, caretPos || (String(rawValue).length));
+			return { value: formatted, caret: newCaret, isDecimal: Boolean(decimalPart) };
 }
