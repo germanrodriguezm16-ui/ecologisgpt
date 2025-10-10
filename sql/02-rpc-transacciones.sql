@@ -63,6 +63,13 @@ begin
     p_origen_socio_id, p_destino_socio_id, p_comentario, p_voucher_url, p_voucher_type, now()
   )
   returning id, fecha, valor, origen_categoria_id, origen_socio_id,
+  -- Validar que los socios pertenecen a las categorías indicadas
+  if not exists (select 1 from public.socios where id = p_origen_socio_id and categoria_id = p_origen_categoria_id) then
+    raise exception 'El socio de origen no pertenece a la categoría indicada';
+  end if;
+  if not exists (select 1 from public.socios where id = p_destino_socio_id and categoria_id = p_destino_categoria_id) then
+    raise exception 'El socio de destino no pertenece a la categoría indicada';
+  end if;
             destino_categoria_id, destino_socio_id, comentario, voucher_url, created_at
   into v_id, fecha, valor, origen_categoria_id, origen_socio_id,
        destino_categoria_id, destino_socio_id, comentario, voucher_url, v_created;

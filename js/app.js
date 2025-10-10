@@ -112,12 +112,30 @@ document.addEventListener('DOMContentLoaded', ()=>{
           cats.data.forEach(c=> elSel.add(new Option(c.nombre, c.id)));
         });
       }
-      if (socios.data){
-        ['origen_socio_id','destino_socio_id'].forEach(id=>{
-          const elSel = sel(id); if(!elSel) return; elSel.innerHTML='';
-          socios.data.forEach(s=> elSel.add(new Option(s.empresa + ' — ' + (s.titular||''), s.id)));
-        });
+
+      // Poblar socios por categoría dinámicamente
+      async function loadSociosForCategory(catId, targetSelectId){
+        const sEl = sel(targetSelectId);
+        if(!sEl) return;
+        sEl.innerHTML = '';
+        if(!catId) return;
+        const { data: socs, error } = await supabase.from('socios').select('*').eq('categoria_id', catId).order('empresa',{ascending:true});
+        if(error) return console.warn('Error cargando socios por categoría', error.message);
+        socs.forEach(s => sEl.add(new Option(s.empresa + ' — ' + (s.titular||''), s.id)));
       }
+
+      // Asignar handlers para cuando cambien las categorías
+      const origenCat = document.getElementById('origen_categoria_id');
+      const destinoCat = document.getElementById('destino_categoria_id');
+      origenCat?.addEventListener('change', async (e)=>{
+        await loadSociosForCategory(e.target.value, 'origen_socio_id');
+        // limpiar selección de socio si no existe o no pertenece
+        const origenSel = document.getElementById('origen_socio_id'); if (origenSel) origenSel.value = '';
+      });
+      destinoCat?.addEventListener('change', async (e)=>{
+        await loadSociosForCategory(e.target.value, 'destino_socio_id');
+        const destinoSel = document.getElementById('destino_socio_id'); if (destinoSel) destinoSel.value = '';
+      });
       // set default datetime-local to now in Bogota
       const fechaInput = document.querySelector('input[name="fecha"]');
       if (fechaInput && !fechaInput.value){
