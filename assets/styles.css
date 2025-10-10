@@ -13,6 +13,34 @@ aside{background:var(--panel);border-right:1px solid var(--border);padding:16px;
 .muted{color:var(--muted);font-size:12px}
 nav{display:flex;flex-direction:column;gap:6px;margin-top:12px}
 .nav-btn{appearance:none;border:1px solid var(--border);background:transparent;color:var(--text);text-align:left;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:14px}
+
+/* FAB: botón flotante circular */
+.fab{
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent, #3ba55d);
+  color: #fff;
+  border: none;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.45);
+  z-index: 200;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.fab:active{ transform: scale(0.98); }
+.fab:focus{ outline: 2px solid rgba(255,255,255,0.12); outline-offset: 2px; }
+.fab .fab-icon{ font-size: 20px; line-height:1; }
+
+/* smaller on mobile to avoid covering content */
+@media (max-width: 480px){
+  .fab{ right: 12px; bottom: 12px; width:48px; height:48px; }
+}
 .nav-btn.active{background:var(--card);border-color:#2a3a52}
 main{padding:24px}
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap}
