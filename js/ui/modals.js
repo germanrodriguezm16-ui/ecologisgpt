@@ -67,6 +67,39 @@ export function bindModalCloseButtons(){
   $('#btnCancelTransaccion')?.addEventListener('click', closeTransaccionModal);
 }
 
+// Close all modals, backdrops and preview overlays. This is a defensive cleanup
+// to ensure no residual overlays remain when navigating between views.
+export function closeAllModalsAndOverlays(){
+  try{
+    // Close and cleanup all backdrops
+    const backdrops = Array.from(document.querySelectorAll('.backdrop'));
+    backdrops.forEach(bd => {
+      try{
+        // remove event listeners if stored
+        const handlers = bd._modalHandlers || {};
+        if(handlers.onBackdropClick) bd.removeEventListener('click', handlers.onBackdropClick);
+        if(handlers.onKey) document.removeEventListener('keydown', handlers.onKey);
+        // remove open class and force hide
+        bd.classList.remove('open');
+        try{ bd.style.display = 'none'; }catch(_){ }
+        // close inner modal
+        const modal = bd.querySelector('.modal');
+        if(modal){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); }
+        // remove handlers reference
+        try{ delete bd._modalHandlers; }catch(_){ bd._modalHandlers = null; }
+      }catch(_){ }
+    });
+
+    // Remove any preview overlays that might have been appended to body
+    const previews = Array.from(document.querySelectorAll('.preview-overlay'));
+    previews.forEach(p=>{ try{ p.classList.remove('open'); if(p.parentElement) p.remove(); }catch(_){ } });
+
+    // Restore scrolling
+    try{ document.body.style.overflow = ''; }catch(_){ }
+    console.log('[modals] closeAllModalsAndOverlays: cleaned', backdrops.length, 'backdrops and', previews.length, 'previews');
+  }catch(e){ console.warn('closeAllModalsAndOverlays error', e); }
+}
+
 /* Transaccion modal */
 let transaccionOpen = false;
 export function openTransaccionModal(){
