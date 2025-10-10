@@ -55,22 +55,26 @@ export async function renderTransacciones(){
 export async function handleTransaccionFormSubmit(e){
   e.preventDefault();
   const f = e.target;
-  const out = { ok: true, msg: null };
 
-  // Validaciones en frontend
-  const valor = parseFloat(f.valor.value||'0');
-  if (!valor || valor <= 0) { out.ok = false; out.msg = 'Ingrese un valor mayor que 0'; }
-  if (!f.origen_socio_id.value || !f.destino_socio_id.value) { out.ok = false; out.msg = out.msg ? out.msg + '; seleccione origen y destino' : 'Seleccione origen y destino'; }
-  if (f.origen_socio_id.value && f.destino_socio_id.value && f.origen_socio_id.value === f.destino_socio_id.value) { out.ok = false; out.msg = 'Origen y destino no pueden ser el mismo socio'; }
-  if (!f.fecha.value) { out.ok = false; out.msg = out.msg ? out.msg + '; indique fecha y hora' : 'Indique fecha y hora'; }
+  // Recolectar campos obligatorios faltantes
+  const missing = [];
+  if (!f.origen_categoria_id.value) missing.push('Categoría origen');
+  if (!f.origen_socio_id.value) missing.push('Socio origen');
+  if (!f.destino_categoria_id.value) missing.push('Categoría destino');
+  if (!f.destino_socio_id.value) missing.push('Socio destino');
+  if (!f.valor.value || !String(f.valor.value).trim()) missing.push('Valor');
+  if (!f.fecha.value) missing.push('Fecha y hora');
 
   const errElId = 'transError';
   let errEl = document.getElementById(errElId);
-  if (!errEl){ errEl = document.createElement('div'); errEl.id = errElId; errEl.className='error'; f.querySelector('button[type="submit"]').parentElement.prepend(errEl); }
-  if(!out.ok){ errEl.textContent = out.msg; return; } else { errEl.textContent = ''; }
+  if (!errEl){ errEl = document.createElement('div'); errEl.id = errElId; errEl.className='error-list'; f.prepend(errEl); }
+  if (missing.length){
+    errEl.innerHTML = '<strong>Faltan campos obligatorios:</strong><br>' + missing.map(m=> '- ' + m).join('<br>');
+    return;
+  }
+  errEl.innerHTML = '';
 
-  // Convertir fecha local (datetime-local asume zona local) ---> interpretarla como America/Bogota
-  // el input datetime-local no contiene zona; asumimos que el usuario introdujo hora en Bogota.
+  // Convertir fecha local (datetime-local asume hora en Bogotá) -> ISO UTC
   function colombiaLocalToIsoUtc(localDatetimeValue){
     const colombiaOffsetMinutes = -300; // -5 * 60
     const [date, time] = localDatetimeValue.split('T');
@@ -80,12 +84,26 @@ export async function handleTransaccionFormSubmit(e){
     return new Date(utcMillis).toISOString();
   }
 
+  // Parse currency colombiana: ejemplo "1.234.567,89" -> 1234567.89
+  function parseCurrencyToNumber(str){
+    if(!str) return 0;
+    // quitar espacios y prefijos
+    let s = String(str).replace(/\s/g,'').replace(/\$/g,'');
+    // eliminar puntos de miles, cambiar coma decimal por punto
+    s = s.replace(/\./g,'').replace(/,/g,'.');
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  }
+
+  const valorNum = parseCurrencyToNumber(f.valor.value);
+  if (!valorNum || valorNum <= 0){ errEl.innerHTML = '<strong>Error:</strong> El valor debe ser mayor que 0'; return; }
+
   const payload = {
     p_origen_categoria_id: f.origen_categoria_id.value || null,
     p_origen_socio_id: f.origen_socio_id.value || null,
     p_destino_categoria_id: f.destino_categoria_id.value || null,
     p_destino_socio_id: f.destino_socio_id.value || null,
-    p_valor: valor,
+    p_valor: valorNum,
     p_fecha: colombiaLocalToIsoUtc(f.fecha.value),
     p_comentario: f.comentario.value || null,
     p_voucher_url: null,

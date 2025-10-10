@@ -146,6 +146,34 @@ document.addEventListener('DOMContentLoaded', ()=>{
         fechaInput.value = d.toISOString().slice(0,16);
       }
 
+      // Formateo de input moneda (colombiano) con punto miles y coma decimales
+      const valorInput = document.querySelector('input[name="valor"]');
+      function formatCurrencyColombian(value){
+        if(value === '' || value == null) return '';
+        // eliminar todo excepto numeros y coma/punto
+        const only = String(value).replace(/[^0-9,\.]/g,'');
+        // reemplazar comas por punto para parsear, luego formatear
+        const cleaned = only.replace(/\./g,'').replace(/,/g,'.');
+        const num = parseFloat(cleaned);
+        if(isNaN(num)) return '';
+        // separar parte entera y decimal
+        const parts = num.toFixed(2).split('.');
+        const intPart = parts[0];
+        const decPart = parts[1];
+        const intWithDots = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return intWithDots + (decPart ? ',' + decPart : '');
+      }
+
+      if (valorInput){
+        valorInput.addEventListener('input', (e)=>{
+          const raw = e.target.value;
+          const formatted = formatCurrencyColombian(raw);
+          e.target.value = formatted;
+        });
+        // inicializar placeholder
+        if(!valorInput.value) valorInput.value = '';
+      }
+
       // evitar seleccionar el mismo socio en destino al elegir origen
       const origenSel = document.getElementById('origen_socio_id');
       const destinoSel = document.getElementById('destino_socio_id');
