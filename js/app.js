@@ -7,6 +7,14 @@ import { $, $all, el, debug } from './utils/dom.js';
     console.log('[BOOT] app.js cargado');
   } catch(_){}
 })();
+// beacon helper
+window.__beacon = function(tag, data){
+  try{
+    if(tag) console.log('['+tag+']', data === undefined ? '' : data);
+    const dbg = document.getElementById('debug');
+    if(dbg && tag === 'BOOT') dbg.textContent = '[BOOT] listo';
+  }catch(_){ }
+};
 import { loadCategorias } from './views/categorias.js';
 import { openSociosList, handleSocioFormSubmit } from './views/socios.js';
 import { openTransaccionesView, renderTransacciones, handleTransaccionFormSubmit } from './views/transacciones.js';
@@ -28,6 +36,7 @@ function demoCard(t){ const c=document.createElement('div'); c.className='card';
 function mountView(tab){
   // Defensive cleanup: ensure no leftover modals/overlays remain before mounting a new view
   try{ closeAllModalsAndOverlays(); }catch(_){ }
+  try{ window.__beacon && window.__beacon('NAV', {to: tab}); }catch(_){ }
   $all('.nav-btn', $('#nav')).forEach(b => b.classList.toggle('active', b.dataset.view===tab));
   $('#title').textContent = tab.charAt(0).toUpperCase()+tab.slice(1);
   $('#view').innerHTML='';
@@ -54,6 +63,7 @@ function mountView(tab){
 function onHashChange(){
   const tab = (location.hash||'#socios').slice(1);
   try{ closeAllModalsAndOverlays(); }catch(_){ }
+  try{ window.__beacon && window.__beacon('NAV', {from: location.hash, to: tab}); }catch(_){}
   mountView(tab);
 }
 
@@ -76,7 +86,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   // forms submit binding
   // Categoría
-  $('#formCat').addEventListener('submit', async (e)=>{
+    $('#formCat').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const supabase = getClient();
     const f=e.target;
@@ -86,9 +96,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if (catId){
       const up = await supabase.from('categorias_socios').update({nombre,color,balance}).eq('id', catId);
       if(up.error) return alert(up.error.message);
+      try{ window.__beacon && window.__beacon('CAT:SAVED', {id: catId, action:'update'}); }catch(_){ }
     } else {
       const ins = await supabase.from('categorias_socios').insert([{nombre,color,balance, tab2_name:'Notas', tab3_name:'Archivos'}]);
       if(ins.error) return alert(ins.error.message);
+      try{ const newId = (ins && ins.data && ins.data[0] && ins.data[0].id) ? ins.data[0].id : null; window.__beacon && window.__beacon('CAT:SAVED', {id: newId, action:'insert'}); }catch(_){ }
     }
     closeCatModal();
     loadCategorias();

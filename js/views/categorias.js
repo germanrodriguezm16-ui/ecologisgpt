@@ -30,6 +30,7 @@ export async function loadCategorias(){
       }
     });
   }
+  try{ window.__beacon && window.__beacon('CAT:LOADED', {count: (data||[]).length}); }catch(_){ }
 }
 
 export function buildCatCard(row){
