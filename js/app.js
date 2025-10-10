@@ -31,6 +31,8 @@ function mountView(tab){
     // ensure supabase
     try { getClient(); } catch(e){ console.error(e); }
     loadCategorias();
+  } else if (tab === 'transacciones') {
+    try { openTransaccionesView(); } catch (e) { console.error('Error opening transacciones view', e); $('#topActions').innerHTML=''; $('#view').appendChild(demoCard('transacciones')); }
   } else {
     $('#topActions').innerHTML='';
     $('#view').appendChild(demoCard(tab));
