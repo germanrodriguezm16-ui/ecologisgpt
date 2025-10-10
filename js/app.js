@@ -132,68 +132,52 @@ document.addEventListener('DOMContentLoaded', ()=>{
         fechaInput.value = d.toISOString().slice(0,16);
       }
 
-      // Formateo de input moneda (colombiano) con punto miles y coma decimales
+      // Formato de input: usar FSM incremental (int/dec/hasDec)
+      const { createCurrencyFSM } = await import('./utils/currency.js');
       const valorInput = document.querySelector('input[name="valor"]');
-      function formatCurrencyColombian(value){
-        if(value === '' || value == null) return '';
-        // eliminar todo excepto numeros y coma/punto
-        const only = String(value).replace(/[^0-9,\.]/g,'');
-        // reemplazar comas por punto para parsear, luego formatear
-        const cleaned = only.replace(/\./g,'').replace(/,/g,'.');
-        const num = parseFloat(cleaned);
-        if(isNaN(num)) return '';
-        // separar parte entera y decimal
-        const parts = num.toFixed(2).split('.');
-        const intPart = parts[0];
-        const decPart = parts[1];
-        const intWithDots = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        return intWithDots + (decPart ? ',' + decPart : '');
-      }
-
       if (valorInput){
-        // Live caret-aware formatting
-        // Manejo de composición (IME) — no formatear mientras se compone
+        const fsm = createCurrencyFSM();
         let composing = false;
-        valorInput.addEventListener('compositionstart', ()=> { composing = true; });
-        valorInput.addEventListener('compositionend', (e)=>{ composing = false; 
-          // al terminar composición, forzar formateo una vez
-          const cur = e.target;
-          const selStart = cur.selectionStart;
-          const { value, caret } = formatCurrencyLive(cur.value, selStart);
-          cur.value = value;
-          try{ cur.setSelectionRange(caret, caret); }catch(_){ }
+        valorInput.value = fsm.getDisplay();
+
+        // prevenir comportamiento nativo y manejar teclas
+        valorInput.addEventListener('keydown', (e)=>{
+          if (e.key === 'Backspace'){
+            e.preventDefault(); fsm.backspace(); valorInput.value = fsm.getDisplay(); return;
+          }
+          if (e.key === '.' || e.key === ','){
+            e.preventDefault(); fsm.inputSep(); valorInput.value = fsm.getDisplay(); return;
+          }
+          if (/^[0-9]$/.test(e.key)){
+            e.preventDefault(); fsm.inputDigit(e.key); valorInput.value = fsm.getDisplay(); return;
+          }
+          // permitir navegación, tab, etc.
         });
 
-        // Previene transformaciones violentas si el valor no cambió (por ejemplo por setSelectionRange)
-        valorInput.dataset._prevValue = valorInput.value || '';
-        valorInput.addEventListener('input', (e)=>{
-          if (composing) return; // dejar que IME termine
-          const cur = e.target;
-          const orig = cur.value;
-          // si el valor no cambió realmente (puede pasar por setSelectionRange), no formatear
-          if (cur.dataset._prevValue === orig) return;
-          const selStart = cur.selectionStart;
-          const { value, caret } = formatCurrencyLive(orig, selStart);
-          cur.value = value;
-          cur.dataset._prevValue = value;
-          try{ cur.setSelectionRange(caret, caret); }catch(_){ /* ignore */ }
+        // composición IME
+        valorInput.addEventListener('compositionstart', ()=> composing = true);
+        valorInput.addEventListener('compositionend', (e)=>{
+          composing = false;
+          // después de composición, actualizamos display (no intentamos mapear)
+          valorInput.value = fsm.getDisplay();
         });
 
-        // focus: des-formatear para edición (mostrar versión sin miles, con punto decimal)
-        valorInput.addEventListener('focus', (e)=>{
-          const raw = e.target.value.replace(/\./g,'').replace(/,/g,'.').replace(/\s/g,'').replace(/\$/g,'');
-          e.target.value = raw;
-          setTimeout(()=> e.target.selectionStart = e.target.selectionEnd = e.target.value.length, 0);
+        // paste: normalizar
+        valorInput.addEventListener('paste', (e)=>{
+          e.preventDefault();
+          const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+          // limpiar y simular pulsaciones
+          const cleaned = text.replace(/[^0-9.,]/g, '');
+          for (const ch of cleaned){
+            if (/[0-9]/.test(ch)) fsm.inputDigit(ch);
+            else if (ch === '.' || ch === ',') fsm.inputSep();
+          }
+          valorInput.value = fsm.getDisplay();
         });
 
-        // blur: aplicar formateo definitivo (usamos formatCurrencyLive para consistencia)
-        valorInput.addEventListener('blur', (e)=>{
-          const res = formatCurrencyLive(e.target.value, (e.target.value||'').length);
-          e.target.value = res.value;
-        });
-
-        // inicializar placeholder
-        if(!valorInput.value) valorInput.value = '';
+        // focus/blur
+        valorInput.addEventListener('focus', ()=>{ /* noop: mantener FSM */ });
+        valorInput.addEventListener('blur', ()=>{ /* opcional: fsm.pad2(); valorInput.value = fsm.getDisplay(); */ });
       }
 
       // evitar seleccionar el mismo socio en destino al elegir origen
