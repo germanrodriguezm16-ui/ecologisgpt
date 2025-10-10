@@ -74,6 +74,20 @@ export async function handleTransaccionFormSubmit(e){
   }
   errEl.innerHTML = '';
 
+  // Comentario obligatorio (UI requirement)
+  const comentarioInput = f.comentario;
+  let comentarioErr = document.getElementById('comentarioError');
+  if (!comentarioErr){ comentarioErr = document.createElement('div'); comentarioErr.id='comentarioError'; comentarioErr.className='field-error'; comentarioInput.after(comentarioErr); }
+  const comentarioVal = String(comentarioInput.value || '');
+  if (!comentarioVal.trim()){
+    comentarioErr.textContent = 'El comentario es obligatorio.';
+    comentarioInput.setAttribute('aria-invalid','true'); comentarioInput.classList.add('invalid');
+    return;
+  }
+  // clear comentario error if any
+  comentarioErr.textContent = '';
+  comentarioInput.removeAttribute('aria-invalid'); comentarioInput.classList.remove('invalid');
+
   // Convertir fecha local (datetime-local asume hora en Bogotá) -> ISO UTC
   function colombiaLocalToIsoUtc(localDatetimeValue){
     const colombiaOffsetMinutes = -300; // -5 * 60

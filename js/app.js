@@ -95,7 +95,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if (cats.data){
         ['origen_categoria_id','destino_categoria_id'].forEach(id=>{
           const elSel = sel(id); if(!elSel) return; elSel.innerHTML='';
+          // placeholder option
+          const ph = new Option('Seleccione categoría', ''); ph.disabled = true; ph.selected = true; ph.hidden = true; elSel.add(ph);
           cats.data.forEach(c=> elSel.add(new Option(c.nombre, c.id)));
+          // ensure no preselection on Create
+          try{ elSel.value = ''; }catch(_){ }
         });
       }
 
