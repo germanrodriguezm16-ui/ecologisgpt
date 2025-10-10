@@ -165,11 +165,27 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }
 
       if (valorInput){
+        // Permitir sólo caracteres válidos mientras escribe (dígitos, punto, coma)
         valorInput.addEventListener('input', (e)=>{
-          const raw = e.target.value;
-          const formatted = formatCurrencyColombian(raw);
+          const v = e.target.value;
+          const cleaned = v.replace(/[^0-9.,]/g,'');
+          if (cleaned !== v) e.target.value = cleaned;
+        });
+
+        // Al entrar al campo, remover el formato para facilitar edición
+        valorInput.addEventListener('focus', (e)=>{
+          const raw = e.target.value.replace(/\./g,'').replace(/,/g,'.').replace(/\s/g,'').replace(/\$/g,'');
+          e.target.value = raw;
+          // colocar cursor al final
+          setTimeout(()=> e.target.selectionStart = e.target.selectionEnd = e.target.value.length, 0);
+        });
+
+        // Al salir, aplicar formateo colombiano
+        valorInput.addEventListener('blur', (e)=>{
+          const formatted = formatCurrencyColombian(e.target.value);
           e.target.value = formatted;
         });
+
         // inicializar placeholder
         if(!valorInput.value) valorInput.value = '';
       }
