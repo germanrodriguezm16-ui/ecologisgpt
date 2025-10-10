@@ -44,6 +44,7 @@ export function openSociosList(catId, catName) {
 
   $('#topActions').innerHTML =
     '<div style="display:flex;gap:10px;align-items:center">' +
+    '  <button class="btn ghost" id="btnBack" type="button">← Volver</button>' +
     '  <input id="socSearch" type="search" placeholder="Buscar por empresa o titular..." style="padding:6px 8px;border-radius:6px;border:1px solid var(--muted);min-width:220px" />' +
     '  <div class="actions-inline">' +
     '    <button class="btn ' +
