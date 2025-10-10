@@ -3,7 +3,7 @@ import { loadCategorias } from './views/categorias.js';
 import { openSociosList, handleSocioFormSubmit } from './views/socios.js';
 import { openTransaccionesView, renderTransacciones, handleTransaccionFormSubmit } from './views/transacciones.js';
 import { getClient } from './services/supabase.js';
-import { bindConfirm, bindModalCloseButtons, openCatModal, getCatEditId, closeCatModal, getCatCfgId, closeCatConfig } from './ui/modals.js';
+import { bindConfirm, bindModalCloseButtons, openCatModal, getCatEditId, closeCatModal, getCatCfgId, closeCatConfig, closeAllModalsAndOverlays } from './ui/modals.js';
 import { formatCurrencyLive } from './utils/format.js';
 
 // Sentry init (optional)
@@ -18,6 +18,8 @@ import { formatCurrencyLive } from './utils/format.js';
 function demoCard(t){ const c=document.createElement('div'); c.className='card'; c.innerHTML='<h3>'+t+'</h3><p class="muted">Vista demo.</p>'; return c; }
 
 function mountView(tab){
+  // Defensive cleanup: ensure no leftover modals/overlays remain before mounting a new view
+  try{ closeAllModalsAndOverlays(); }catch(_){ }
   $all('.nav-btn', $('#nav')).forEach(b => b.classList.toggle('active', b.dataset.view===tab));
   $('#title').textContent = tab.charAt(0).toUpperCase()+tab.slice(1);
   $('#view').innerHTML='';
@@ -43,10 +45,13 @@ function mountView(tab){
 
 function onHashChange(){
   const tab = (location.hash||'#socios').slice(1);
+  try{ closeAllModalsAndOverlays(); }catch(_){ }
   mountView(tab);
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
+  // Defensive cleanup at startup
+  try{ closeAllModalsAndOverlays(); }catch(_){ }
   // bind modals
   bindConfirm();
   bindModalCloseButtons();
