@@ -535,7 +535,8 @@ export async function handleSocioFormSubmit(e) {
     }
   }
 
-  document.getElementById('modalSocio').style.display = 'none';
+  // use centralized modal close helper to ensure backdrop and handlers are cleaned
+  import('../ui/modals.js').then(m => m.closeSocioModal());
   renderSocios();
 }
 
