@@ -11,6 +11,25 @@ let currentCatTab2 = 'Notas';
 let currentCatTab3 = 'Archivos';
 let prefView = localStorage.getItem('sociosViewMode') || 'cards';
 
+// Búsqueda local (cache + helpers)
+let sociosCache = [];
+let currentSearchQuery = '';
+
+function debounce(fn, wait){
+  let t = null;
+  return function(...args){ clearTimeout(t); t = setTimeout(()=> fn.apply(this, args), wait); };
+}
+
+function filterRows(rows, q){
+  if(!q) return rows;
+  const qq = String(q).toLowerCase();
+  return (rows||[]).filter(r => {
+    const emp = String(r.empresa||'').toLowerCase();
+    const tit = String(r.titular||'').toLowerCase();
+    return emp.includes(qq) || tit.includes(qq);
+  });
+}
+
 /* ========== Navegación principal ========== */
 export function openSociosList(catId, catName) {
   currentCat = catId;
@@ -24,17 +43,19 @@ export function openSociosList(catId, catName) {
       : 'Crear socio';
 
   $('#topActions').innerHTML =
-    '<button class="btn ghost" id="btnBack" type="button">← Volver</button>' +
-    '<div class="actions-inline">' +
-    ' <button class="btn ' +
+    '<div style="display:flex;gap:10px;align-items:center">' +
+    '  <input id="socSearch" type="search" placeholder="Buscar por empresa o titular..." style="padding:6px 8px;border-radius:6px;border:1px solid var(--muted);min-width:220px" />' +
+    '  <div class="actions-inline">' +
+    '    <button class="btn ' +
     (prefView === 'list' ? 'warn' : '') +
     '" id="btnList" type="button">Lista</button>' +
-    ' <button class="btn ' +
+    '    <button class="btn ' +
     (prefView === 'cards' ? 'warn' : '') +
     '" id="btnCards" type="button">Tarjetas</button>' +
-    ' <button class="btn primary" id="btnNewSocio" type="button">' +
+    '    <button class="btn primary" id="btnNewSocio" type="button">' +
     esc(labelBtn) +
     '</button>' +
+    '  </div>' +
     '</div>';
 
   // FIX: botón "Volver" correctamente (hash con #)
@@ -67,6 +88,16 @@ export function openSociosList(catId, catName) {
   $('#btnNewSocio').addEventListener('click', () =>
     openSocioModal(null, currentCatName)
   );
+
+  // bind search input (debounced)
+  const searchEl = $('#socSearch');
+  if (searchEl){
+    searchEl.value = currentSearchQuery || '';
+    searchEl.addEventListener('input', debounce((e)=>{
+      currentSearchQuery = String(e.target.value||'').trim();
+      renderSocios();
+    }, 250));
+  }
 
   $('#view').appendChild(el('div', { id: 'socContent' }, ['Cargando…']));
 
@@ -104,15 +135,23 @@ export async function renderSocios() {
     cont.innerHTML = '<div class="error">' + esc(r.error.message) + '</div>';
     return;
   }
-  const rows = r.rows;
+  const rows = r.rows || [];
+  sociosCache = rows;
+  const filtered = filterRows(rows, currentSearchQuery);
+
   if (!rows.length) {
     cont.innerHTML = '<div class="empty">No hay socios en esta categoría.</div>';
     return;
   }
 
+  if (filtered.length === 0) {
+    cont.innerHTML = '<div class="empty">No se encontraron socios.</div>';
+    return;
+  }
+
   cont.innerHTML = '';
-  if (prefView === 'list') cont.appendChild(buildSociosTable(rows));
-  else cont.appendChild(buildSociosCards(rows));
+  if (prefView === 'list') cont.appendChild(buildSociosTable(filtered));
+  else cont.appendChild(buildSociosCards(filtered));
 
   // Drag & drop en cards
   if (prefView === 'cards' && window.Sortable) {
