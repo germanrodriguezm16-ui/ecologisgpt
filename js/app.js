@@ -118,6 +118,29 @@ document.addEventListener('DOMContentLoaded', ()=>{
           socios.data.forEach(s=> elSel.add(new Option(s.empresa + ' — ' + (s.titular||''), s.id)));
         });
       }
+      // set default datetime-local to now in Bogota
+      const fechaInput = document.querySelector('input[name="fecha"]');
+      if (fechaInput && !fechaInput.value){
+        const nowUtc = Date.now();
+        const colombiaOffsetHours = -5; // Bogotá UTC-5
+        const colombiaMillis = nowUtc + colombiaOffsetHours * 3600_000;
+        const d = new Date(colombiaMillis);
+        fechaInput.value = d.toISOString().slice(0,16);
+      }
+
+      // evitar seleccionar el mismo socio en destino al elegir origen
+      const origenSel = document.getElementById('origen_socio_id');
+      const destinoSel = document.getElementById('destino_socio_id');
+      function syncDisable(){
+        if (!origenSel || !destinoSel) return;
+        const origenVal = origenSel.value;
+        Array.from(destinoSel.options).forEach(opt=> opt.disabled = (opt.value === origenVal));
+      }
+      origenSel?.addEventListener('change', syncDisable);
+      destinoSel?.addEventListener('change', ()=>{
+        // si por algún motivo el usuario dejó el mismo (por error), mostrar advertencia simple
+        if (origenSel && destinoSel && origenSel.value === destinoSel.value) alert('Origen y destino no pueden ser el mismo socio');
+      });
     }catch(e){ console.warn('No se pudieron cargar selects de transacciones', e); }
   });
 

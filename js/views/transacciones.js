@@ -55,19 +55,43 @@ export async function renderTransacciones(){
 export async function handleTransaccionFormSubmit(e){
   e.preventDefault();
   const f = e.target;
+  const out = { ok: true, msg: null };
+
+  // Validaciones en frontend
+  const valor = parseFloat(f.valor.value||'0');
+  if (!valor || valor <= 0) { out.ok = false; out.msg = 'Ingrese un valor mayor que 0'; }
+  if (!f.origen_socio_id.value || !f.destino_socio_id.value) { out.ok = false; out.msg = out.msg ? out.msg + '; seleccione origen y destino' : 'Seleccione origen y destino'; }
+  if (f.origen_socio_id.value && f.destino_socio_id.value && f.origen_socio_id.value === f.destino_socio_id.value) { out.ok = false; out.msg = 'Origen y destino no pueden ser el mismo socio'; }
+  if (!f.fecha.value) { out.ok = false; out.msg = out.msg ? out.msg + '; indique fecha y hora' : 'Indique fecha y hora'; }
+
+  const errElId = 'transError';
+  let errEl = document.getElementById(errElId);
+  if (!errEl){ errEl = document.createElement('div'); errEl.id = errElId; errEl.className='error'; f.querySelector('button[type="submit"]').parentElement.prepend(errEl); }
+  if(!out.ok){ errEl.textContent = out.msg; return; } else { errEl.textContent = ''; }
+
+  // Convertir fecha local (datetime-local asume zona local) ---> interpretarla como America/Bogota
+  // el input datetime-local no contiene zona; asumimos que el usuario introdujo hora en Bogota.
+  function colombiaLocalToIsoUtc(localDatetimeValue){
+    const colombiaOffsetMinutes = -300; // -5 * 60
+    const [date, time] = localDatetimeValue.split('T');
+    const [y, m, d] = date.split('-').map(Number);
+    const [hh, mm] = time.split(':').map(Number);
+    const utcMillis = Date.UTC(y, m - 1, d, hh, mm) - (colombiaOffsetMinutes * 60000);
+    return new Date(utcMillis).toISOString();
+  }
+
   const payload = {
     p_origen_categoria_id: f.origen_categoria_id.value || null,
     p_origen_socio_id: f.origen_socio_id.value || null,
     p_destino_categoria_id: f.destino_categoria_id.value || null,
     p_destino_socio_id: f.destino_socio_id.value || null,
-    p_valor: parseFloat(f.valor.value||'0'),
-    p_fecha: f.fecha.value || null,
+    p_valor: valor,
+    p_fecha: colombiaLocalToIsoUtc(f.fecha.value),
     p_comentario: f.comentario.value || null,
     p_voucher_url: null,
     p_voucher_type: null
   };
 
-  // llamada RPC
   try{
     const supabase = getClient();
     const { data, error } = await supabase.rpc('insert_transaccion_and_update_balances', payload);
@@ -77,6 +101,6 @@ export async function handleTransaccionFormSubmit(e){
     alert('Transacción creada');
   }catch(err){
     console.error(err);
-    alert('No se pudo crear la transacción: ' + (err.message || String(err)));
+    errEl.textContent = 'No se pudo crear la transacción: ' + (err.message || String(err));
   }
 }
