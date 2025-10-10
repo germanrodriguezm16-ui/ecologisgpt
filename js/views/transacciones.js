@@ -4,6 +4,7 @@ import { openTransaccionModal, closeTransaccionModal } from '../ui/modals.js';
 import { createFAB, removeFAB } from '../ui/fab.js';
 
 export function openTransaccionesView(){
+  console.log('[TX] openTransaccionesView()');
   $('#title').textContent = 'Transacciones';
   $('#view').innerHTML = '';
 
@@ -28,6 +29,7 @@ export function openTransaccionesView(){
 }
 
 export async function prepareTransaccionModal(){
+  console.log('[TX] prepareTransaccionModal()');
   try{
     const supabase = getClient();
     const cats = await supabase.from('categorias_socios').select('*').order('orden',{ascending:true});
@@ -292,7 +294,9 @@ async function fetchTransacciones(){
 }
 
 export async function renderTransacciones(){
+  console.log('[TX] renderTransacciones(): inicio');
   const cont = $('#transContent');
+  if(!cont){ console.warn('[TX] renderTransacciones: contenedor transContent no encontrado'); return; }
   cont.innerHTML = 'Cargando…';
   const r = await fetchTransacciones();
   if (r.error) return cont.innerHTML = '<div class="error">' + esc(r.error.message) + '</div>';

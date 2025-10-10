@@ -61,6 +61,7 @@ export function closeSocioModal(){ closeModal($('#modalSocio')); socioEditId=nul
 export function getSocioEditId(){ return socioEditId; }
 
 export function bindModalCloseButtons(){
+  console.log('[MODAL] bind close buttons');
   $('#btnCancelCat')?.addEventListener('click', closeCatModal);
   $('#btnCancelCatCfg')?.addEventListener('click', closeCatConfig);
   $('#btnCancelSocio')?.addEventListener('click', closeSocioModal);
@@ -114,6 +115,7 @@ export function closeTransaccionModal(){
 /* Generic modal helpers: operate on modal element (which is inside a .backdrop parent in markup) */
 function openModal(el){
   try{
+    console.log('[MODAL] open', el?.id || el?.className);
     if(!el) return console.warn('openModal: element not found');
     // normalize: el can be the backdrop or the inner modal
     let backdrop = null;
@@ -151,6 +153,7 @@ function openModal(el){
 }
 
 function closeModal(el){
+  try{ console.log('[MODAL] close', el?.id || el?.className); }catch(_){ }
   try{
     if(!el) return;
     // el may be backdrop or modal element
