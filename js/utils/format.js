@@ -15,47 +15,63 @@ export function formatCurrencyLive(rawValue, caretPos){
 	// Si está vacío, devolver vacío y caret 0
 	if (allowed === '') return { value: '', caret: 0 };
 
-	// Detectar si el usuario ya escribió una coma o punto para decimal
-	// Normalizar: quitamos puntos (miles) y transformamos la última coma/punto en separador decimal
-	// Encontrar la posición relativa del separador decimal (última coma o punto)
+	// Contar dígitos antes del caret en la entrada original (sin separadores)
+	const digitsBeforeCaret = (String(rawValue).slice(0, Math.max(0, caretPos || 0)).match(/\d/g) || []).length;
+
+	const hasComma = allowed.indexOf(',') !== -1;
+	const hasDot = allowed.indexOf('.') !== -1;
 	const lastComma = allowed.lastIndexOf(',');
 	const lastDot = allowed.lastIndexOf('.');
-	let decimalPos = Math.max(lastComma, lastDot);
+	const lastSepIndex = Math.max(lastComma, lastDot);
 
-	let integerPart = allowed;
+	let integerPart = '';
 	let decimalPart = '';
 
-	if (decimalPos !== -1){
-		integerPart = allowed.slice(0, decimalPos);
-		decimalPart = allowed.slice(decimalPos + 1);
+	if (lastSepIndex === -1){
+		// no hay separador, todo son dígitos
+		integerPart = allowed.replace(/[.,]/g, '');
+	} else {
+		const sepChar = allowed[lastSepIndex];
+		const after = allowed.slice(lastSepIndex + 1).replace(/[^0-9]/g, '');
+		// Heurística: si existen ambos tipos de separador, asumimos que el último es decimal
+		let treatAsDecimal = false;
+		if (hasComma && hasDot){
+			treatAsDecimal = true; // último separador es decimal
+		} else if (sepChar === ','){
+			// coma es muy probablemente decimal
+			treatAsDecimal = true;
+		} else if (sepChar === '.'){
+			// si hay más de 2 dígitos después del punto, es muy probable que sea separador de miles
+			treatAsDecimal = (after.length <= 2);
+		}
+
+		if (treatAsDecimal){
+			integerPart = allowed.slice(0, lastSepIndex).replace(/[.,]/g, '');
+			decimalPart = after.slice(0,2);
+		} else {
+			// tratar todos los separadores como miles => juntar todo en integer
+			integerPart = allowed.replace(/[.,]/g, '');
+			decimalPart = '';
+		}
 	}
 
-	// Remover cualquier punto/coma del integerPart
-	integerPart = integerPart.replace(/[.,]/g, '');
-
-	// Limitar decimalPart a 2 dígitos
-	if (decimalPart.length > 2) decimalPart = decimalPart.slice(0,2);
+	// eliminar ceros a la izquierda (mantener '0' si es cero)
+	integerPart = integerPart.replace(/^0+(?=\d)/, '');
+	if (integerPart === '') integerPart = '0';
 
 	// Formatear integerPart con separador de miles '.'
-	const intClean = integerPart.replace(/^0+(?=\d)/, ''); // eliminar ceros a la izquierda
-	const intWithDots = intClean.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+	const intWithDots = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
 	const formatted = decimalPart ? (intWithDots + ',' + decimalPart) : intWithDots;
 
-	// Recalcular posición del caret: contamos cuántos caracteres no numéricos (puntos) se han insertado
-	// Antes del caret original, cuántos dígitos había? Estimamos la nueva caret moviéndolo al final relativo.
-	// Para simplificar y ofrecer una experiencia consistente, colocamos el caret al final del bloque donde el usuario estaba escribiendo.
-	// Si queremos más precisión, podríamos mapear índice por índice, pero esta aproximación funciona bien para la mayoría de ediciones.
+	// Mapear caret: colocar el caret después de digitsBeforeCaret en el string formateado
 	let newCaret = formatted.length;
-	if (typeof caretPos === 'number'){
-		// calcular cuántos caracteres (dígitos) estaban antes del caret en el valor 'allowed'
-		const beforeCaret = String(rawValue).slice(0, caretPos).replace(/[^0-9]/g, '');
-		// posicionar caret después de esos dígitos en el formatted string
-		// buscar la posición en 'formatted' donde ya se han consumido beforeCaret.length dígitos
-		let digitsSeen = 0; let pos = 0;
+	if (typeof digitsBeforeCaret === 'number'){
+		let digitsSeen = 0;
+		let pos = 0;
 		for (; pos < formatted.length; pos++){
 			if (/[0-9]/.test(formatted[pos])) digitsSeen++;
-			if (digitsSeen >= beforeCaret.length) { pos++; break; }
+			if (digitsSeen >= digitsBeforeCaret) { pos++; break; }
 		}
 		if (pos <= formatted.length) newCaret = pos;
 	}
