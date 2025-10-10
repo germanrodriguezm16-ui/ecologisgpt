@@ -4,6 +4,7 @@ import { openSociosList, handleSocioFormSubmit } from './views/socios.js';
 import { openTransaccionesView, renderTransacciones, handleTransaccionFormSubmit } from './views/transacciones.js';
 import { getClient } from './services/supabase.js';
 import { bindConfirm, bindModalCloseButtons, openCatModal, getCatEditId, closeCatModal, getCatCfgId, closeCatConfig } from './ui/modals.js';
+import { formatCurrencyLive } from './utils/format.js';
 
 // Sentry init (optional)
 (function(){
@@ -75,21 +76,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     closeCatModal();
     loadCategorias();
   });
-
-  // Config categoría
-  $('#formCatConfig').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const supabase = getClient();
-    const f=e.target;
-    const tab2_name = f.tab2_name.value.trim() || 'Notas';
-    const tab3_name = f.tab3_name.value.trim() || 'Archivos';
-    const id = getCatCfgId();
-    const up = await supabase.from('categorias_socios').update({tab2_name, tab3_name}).eq('id', id);
-    if(up.error) return alert(up.error.message);
-    closeCatConfig();
-    loadCategorias();
-  });
-
   // Socio
   $('#formSocio').addEventListener('submit', (e)=> handleSocioFormSubmit(e));
 
@@ -165,25 +151,27 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }
 
       if (valorInput){
-        // Permitir sólo caracteres válidos mientras escribe (dígitos, punto, coma)
+        // Live caret-aware formatting
         valorInput.addEventListener('input', (e)=>{
-          const v = e.target.value;
-          const cleaned = v.replace(/[^0-9.,]/g,'');
-          if (cleaned !== v) e.target.value = cleaned;
+          const cur = e.target;
+          const orig = cur.value;
+          const selStart = cur.selectionStart;
+          const { value, caret } = formatCurrencyLive(orig, selStart);
+          cur.value = value;
+          try{ cur.setSelectionRange(caret, caret); }catch(_){ /* ignore */ }
         });
 
-        // Al entrar al campo, remover el formato para facilitar edición
+        // focus: des-formatear para edición (mostrar versión sin miles, con punto decimal)
         valorInput.addEventListener('focus', (e)=>{
           const raw = e.target.value.replace(/\./g,'').replace(/,/g,'.').replace(/\s/g,'').replace(/\$/g,'');
           e.target.value = raw;
-          // colocar cursor al final
           setTimeout(()=> e.target.selectionStart = e.target.selectionEnd = e.target.value.length, 0);
         });
 
-        // Al salir, aplicar formateo colombiano
+        // blur: aplicar formateo definitivo (usamos formatCurrencyLive para consistencia)
         valorInput.addEventListener('blur', (e)=>{
-          const formatted = formatCurrencyColombian(e.target.value);
-          e.target.value = formatted;
+          const res = formatCurrencyLive(e.target.value, (e.target.value||'').length);
+          e.target.value = res.value;
         });
 
         // inicializar placeholder
