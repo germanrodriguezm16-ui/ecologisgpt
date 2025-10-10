@@ -152,23 +152,34 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
       if (valorInput){
         // Live caret-aware formatting
-        // keydown: permitir entrada explícita de '.' y ',' (algunos navegadores o IMEs pueden bloquear)
-        valorInput.addEventListener('keydown', (e)=>{
-          if (e.key === '.' || e.key === ',') {
-            // dejar que input procese la tecla
-            return;
-          }
+        // Manejo de composición (IME) — no formatear mientras se compone
+        let composing = false;
+        valorInput.addEventListener('compositionstart', ()=> { composing = true; });
+        valorInput.addEventListener('compositionend', (e)=>{ composing = false; 
+          // al terminar composición, forzar formateo una vez
+          const cur = e.target;
+          const prevWasDecimal = cur.dataset.prevWasDecimal === 'true';
+          const selStart = cur.selectionStart;
+          const { value, caret, isDecimal } = formatCurrencyLive(cur.value, selStart, prevWasDecimal);
+          cur.value = value; cur.dataset.prevWasDecimal = isDecimal ? 'true' : 'false';
+          try{ cur.setSelectionRange(caret, caret); }catch(_){ }
         });
 
+        // Previene transformaciones violentas si el valor no cambió (por ejemplo por setSelectionRange)
         valorInput.dataset.prevWasDecimal = 'false';
+        valorInput.dataset._prevValue = valorInput.value || '';
         valorInput.addEventListener('input', (e)=>{
+          if (composing) return; // dejar que IME termine
           const cur = e.target;
           const orig = cur.value;
+          // si el valor no cambió realmente (puede pasar por setSelectionRange), no formatear
+          if (cur.dataset._prevValue === orig) return;
           const selStart = cur.selectionStart;
           const prevWasDecimal = cur.dataset.prevWasDecimal === 'true';
           const { value, caret, isDecimal } = formatCurrencyLive(orig, selStart, prevWasDecimal);
           cur.value = value;
           cur.dataset.prevWasDecimal = isDecimal ? 'true' : 'false';
+          cur.dataset._prevValue = value;
           try{ cur.setSelectionRange(caret, caret); }catch(_){ /* ignore */ }
         });
 
