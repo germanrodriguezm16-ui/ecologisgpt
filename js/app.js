@@ -1,6 +1,7 @@
 import { $, $all, el, debug } from './utils/dom.js';
 import { loadCategorias } from './views/categorias.js';
 import { openSociosList, handleSocioFormSubmit } from './views/socios.js';
+import { openTransaccionesView, renderTransacciones, handleTransaccionFormSubmit } from './views/transacciones.js';
 import { getClient } from './services/supabase.js';
 import { bindConfirm, bindModalCloseButtons, openCatModal, getCatEditId, closeCatModal, getCatCfgId, closeCatConfig } from './ui/modals.js';
 
@@ -89,6 +90,34 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   // Socio
   $('#formSocio').addEventListener('submit', (e)=> handleSocioFormSubmit(e));
+
+  // Transacciones form submit
+  const formT = $('#formTransaccion');
+  if (formT) formT.addEventListener('submit', (e)=> handleTransaccionFormSubmit(e));
+
+  // Cuando se abra el modal de transaccion, cargamos categorias y socios en selects
+  document.addEventListener('click', async (ev)=>{
+    const btn = ev.target.closest('#btnNewTrans');
+    if (!btn) return;
+    try{
+      const supabase = getClient();
+      const cats = await supabase.from('categorias_socios').select('*').order('orden',{ascending:true});
+      const socios = await supabase.from('socios').select('*').order('empresa',{ascending:true});
+      const sel = (id)=> document.getElementById(id);
+      if (cats.data){
+        ['origen_categoria_id','destino_categoria_id'].forEach(id=>{
+          const elSel = sel(id); if(!elSel) return; elSel.innerHTML='';
+          cats.data.forEach(c=> elSel.add(new Option(c.nombre, c.id)));
+        });
+      }
+      if (socios.data){
+        ['origen_socio_id','destino_socio_id'].forEach(id=>{
+          const elSel = sel(id); if(!elSel) return; elSel.innerHTML='';
+          socios.data.forEach(s=> elSel.add(new Option(s.empresa + ' — ' + (s.titular||''), s.id)));
+        });
+      }
+    }catch(e){ console.warn('No se pudieron cargar selects de transacciones', e); }
+  });
 
   window.addEventListener('hashchange', onHashChange);
   onHashChange();

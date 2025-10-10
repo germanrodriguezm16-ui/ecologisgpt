@@ -64,4 +64,16 @@ export function bindModalCloseButtons(){
   $('#btnCancelCat')?.addEventListener('click', closeCatModal);
   $('#btnCancelCatCfg')?.addEventListener('click', closeCatConfig);
   $('#btnCancelSocio')?.addEventListener('click', closeSocioModal);
+  $('#btnCancelTransaccion')?.addEventListener('click', closeTransaccionModal);
+}
+
+/* Transaccion modal */
+let transaccionOpen = false;
+export function openTransaccionModal(){
+  transaccionOpen = true;
+  $('#modalTransaccion').style.display='flex';
+}
+export function closeTransaccionModal(){
+  transaccionOpen = false;
+  $('#modalTransaccion').style.display='none';
 }
