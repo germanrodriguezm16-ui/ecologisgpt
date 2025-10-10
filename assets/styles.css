@@ -142,8 +142,8 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
 .file-thumb{width:36px;height:36px;border-radius:6px;background-size:cover;background-position:center;background-color:#0b0f14;border:1px solid var(--border)}
 .file-name{font-size:13px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* Preview overlay for voucher (basic) */
-.preview-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:110}
+.preview-overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:110}
+.preview-overlay.open{display:flex}
 .preview-box{max-width:90%;max-height:90%;background:var(--card);border-radius:10px;padding:12px;box-shadow:0 12px 32px rgba(0,0,0,0.6);overflow:auto}
 .preview-box img{display:block;max-width:100%;height:auto}
 .preview-box embed{width:80vw;height:80vh}
