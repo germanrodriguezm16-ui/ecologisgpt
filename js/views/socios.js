@@ -5,7 +5,6 @@ import { contrastColor, borderOn, initials, mutedFor } from '../utils/colors.js'
 import { getClient, getCategoriaById } from '../services/supabase.js';
 import { openConfirm, openSocioModal, openTransaccionModal } from '../ui/modals.js';
 import { prepareTransaccionModal } from './transacciones.js';
-import { openTransaccionModal, prepareTransaccionModal } from './transacciones.js';
 import { createFAB, removeFAB } from '../ui/fab.js';
 
 let currentCat = null;
@@ -15,20 +14,26 @@ let currentCatTab3 = 'Archivos';
 let prefView = localStorage.getItem('sociosViewMode') || 'cards';
 
 // Búsqueda local (cache + helpers)
-let sociosCache = [];
+// let sociosCache = [] // TODO: Implementar cache de socios
 let currentSearchQuery = '';
 
-function debounce(fn, wait){
+function debounce(fn, wait) {
   let t = null;
-  return function(...args){ clearTimeout(t); t = setTimeout(()=> fn.apply(this, args), wait); };
+
+  return function (...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), wait);
+  };
 }
 
-function filterRows(rows, q){
-  if(!q) return rows;
+function filterRows(rows, q) {
+  if (!q) return rows;
   const qq = String(q).toLowerCase();
-  return (rows||[]).filter(r => {
-    const emp = String(r.empresa||'').toLowerCase();
-    const tit = String(r.titular||'').toLowerCase();
+
+  return (rows || []).filter(r => {
+    const emp = String(r.empresa || '').toLowerCase();
+    const tit = String(r.titular || '').toLowerCase();
+
     return emp.includes(qq) || tit.includes(qq);
   });
 }
@@ -41,9 +46,7 @@ export function openSociosList(catId, catName) {
   $('#view').innerHTML = '';
 
   const labelBtn =
-    String(currentCatName).toLowerCase() === 'proveedores'
-      ? 'Crear proveedor'
-      : 'Crear socio';
+    String(currentCatName).toLowerCase() === 'proveedores' ? 'Crear proveedor' : 'Crear socio';
 
   $('#topActions').innerHTML =
     '<div style="display:flex;gap:10px;align-items:center">' +
@@ -64,14 +67,14 @@ export function openSociosList(catId, catName) {
 
   // FIX: botón "Volver" correctamente (hash con #)
   $('#btnBack').addEventListener('click', () => {
-  const prev = window.location.hash;
-  window.location.hash = '#socios';
-  // Si ya estabas en #socios, fuerza al router a refrescar categorías:
-  if (prev === '#socios') {
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
-  }
-});
+    const prev = window.location.hash;
 
+    window.location.hash = '#socios';
+    // Si ya estabas en #socios, fuerza al router a refrescar categorías:
+    if (prev === '#socios') {
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    }
+  });
 
   $('#btnList').addEventListener('click', () => {
     prefView = 'list';
@@ -89,37 +92,53 @@ export function openSociosList(catId, catName) {
     $('#btnList').classList.remove('warn');
   });
 
-  $('#btnNewSocio').addEventListener('click', () =>
-    openSocioModal(null, currentCatName)
-  );
+  $('#btnNewSocio').addEventListener('click', () => openSocioModal(null, currentCatName));
 
   // bind search input (debounced)
   const searchEl = $('#socSearch');
-  if (searchEl){
+
+  if (searchEl) {
     searchEl.value = currentSearchQuery || '';
-    searchEl.addEventListener('input', debounce((e)=>{
-      currentSearchQuery = String(e.target.value||'').trim();
-      renderSocios();
-    }, 250));
+    searchEl.addEventListener(
+      'input',
+      debounce(e => {
+        currentSearchQuery = String(e.target.value || '').trim();
+        renderSocios();
+      }, 250)
+    );
   }
 
   $('#view').appendChild(el('div', { id: 'socContent' }, ['Cargando…']));
 
   // ensure single FAB for opening nueva transacción in Socios view
-  try{ removeFAB('fabNewTrans'); }catch(_){ }
-  try{
+  try {
+    removeFAB('fabNewTrans');
+  } catch (_) {}
+  try {
     console.debug('[Socios] creating FAB');
-    createFAB({ id: 'fabNewTrans', ariaLabel: 'Crear transacción', title: 'Crear transacción', onActivate: async ()=>{
-      // Prefer opening the modal directly without navigating away from Socios.
-      try{ openTransaccionModal(); await prepareTransaccionModal(); }catch(err){
-        // fallback: if direct open fails, navigate to transacciones
-        location.hash = '#transacciones';
-        setTimeout(()=>{ window.dispatchEvent(new Event('openTransaccionAfterMount')); }, 200);
+    createFAB({
+      id: 'fabNewTrans',
+      ariaLabel: 'Crear transacción',
+      title: 'Crear transacción',
+      onActivate: async () => {
+        // Prefer opening the modal directly without navigating away from Socios.
+        try {
+          openTransaccionModal();
+          await prepareTransaccionModal();
+        } catch (err) {
+          // fallback: if direct open fails, navigate to transacciones
+          location.hash = '#transacciones';
+          setTimeout(() => {
+            window.dispatchEvent(new Event('openTransaccionAfterMount'));
+          }, 200);
+        }
       }
-    }});
-  }catch(e){ console.error('[Socios] error creating FAB', e); }
+    });
+  } catch (e) {
+    console.error('[Socios] error creating FAB', e);
+  }
   getCategoriaById(currentCat)
-    .then((cat) => {
+    .then(cat => {
       currentCatTab2 = cat?.tab2_name || 'Notas';
       currentCatTab3 = cat?.tab3_name || 'Archivos';
     })
@@ -129,6 +148,7 @@ export function openSociosList(catId, catName) {
 /* ========== Carga de datos ========== */
 function fetchSociosQuery() {
   const supabase = getClient();
+
   return supabase
     .from('socios')
     .select('*')
@@ -139,6 +159,7 @@ function fetchSociosQuery() {
 
 async function fetchSocios() {
   const { data, error } = await fetchSociosQuery();
+
   if (error) return { rows: [], error };
   return { rows: data || [], error: null };
 }
@@ -146,14 +167,17 @@ async function fetchSocios() {
 /* ========== Render principal ========== */
 export async function renderSocios() {
   const cont = $('#socContent');
+
   cont.innerHTML = 'Cargando…';
   const r = await fetchSocios();
+
   if (r.error) {
     cont.innerHTML = '<div class="error">' + esc(r.error.message) + '</div>';
     return;
   }
   const rows = r.rows || [];
-  sociosCache = rows;
+
+  // sociosCache = rows // TODO: Implementar cache de socios
   const filtered = filterRows(rows, currentSearchQuery);
 
   if (!rows.length) {
@@ -167,12 +191,13 @@ export async function renderSocios() {
   }
 
   cont.innerHTML = '';
-  if (prefView === 'list') cont.appendChild(buildSociosTable(filtered));
-  else cont.appendChild(buildSociosCards(filtered));
+  if (prefView === 'list') cont.appendChild(buildSociosTable(filtered, currentCatName));
+  else cont.appendChild(buildSociosCards(filtered, currentCatName));
 
   // Drag & drop en cards
   if (prefView === 'cards' && window.Sortable) {
     const grid = $('#socContent .grid');
+
     if (grid) {
       window.Sortable.create(grid, {
         animation: 150,
@@ -181,27 +206,27 @@ export async function renderSocios() {
             const supabase = getClient();
             const items = $all('.card', grid).map((card, idx) => ({
               id: Number(card.getAttribute('data-id')),
-              orden: idx + 1,
+              orden: idx + 1
             }));
+
             await Promise.all(
-              items.map((it) =>
-                supabase.from('socios').update({ orden: it.orden }).eq('id', it.id)
-              )
+              items.map(it => supabase.from('socios').update({ orden: it.orden }).eq('id', it.id))
             );
           } catch (err) {
             console.error(err);
             alert('No se pudo guardar el nuevo orden de socios.');
           }
-        },
+        }
       });
     }
   }
 }
 
 /* ========== Cards (con balance y buen contraste) ========== */
-function buildSociosCards(rows) {
+function buildSociosCards(rows, currentCatName) {
   const grid = el('div', { class: 'grid' });
-  rows.forEach((r) => {
+
+  rows.forEach(r => {
     const bg = r.card_color || '#121a26';
     const txt = contrastColor(bg);
     const mut = mutedFor(bg);
@@ -209,8 +234,9 @@ function buildSociosCards(rows) {
 
     const c = el('div', {
       class: 'card',
-      style: { background: bg, color: txt, borderColor: brd },
+      style: { background: bg, color: txt, borderColor: brd }
     });
+
     c.setAttribute('data-id', r.id);
 
     // header
@@ -227,8 +253,8 @@ function buildSociosCards(rows) {
               display: 'grid',
               placeItems: 'center',
               color: mut,
-              fontWeight: '700',
-            },
+              fontWeight: '700'
+            }
           },
           [initials(r.empresa)]
         );
@@ -238,14 +264,17 @@ function buildSociosCards(rows) {
     const titleWrap = el('div');
     const h = el('div', { style: { fontWeight: '700' } }, [r.empresa || '—']);
     const sub = el('div', { style: { color: mut } }, [r.titular || '—']);
+
     titleWrap.appendChild(h);
     titleWrap.appendChild(sub);
     left.appendChild(titleWrap);
 
     const actions = el('div', { class: 'actions-column' });
     const ebtn = el('button', { class: 'icon-btn edit', title: 'Editar', type: 'button' });
+
     ebtn.innerHTML = pencil();
     const dbtn = el('button', { class: 'icon-btn delete', title: 'Eliminar', type: 'button' });
+
     dbtn.innerHTML = trash();
     actions.appendChild(ebtn);
     actions.appendChild(dbtn);
@@ -262,15 +291,16 @@ function buildSociosCards(rows) {
           marginTop: '10px',
           fontSize: '16px',
           fontWeight: '600',
-          color: txt,
-        },
+          color: txt
+        }
       },
       ['Balance: $' + fmt(r.balance || 0)]
     );
+
     c.appendChild(balance);
 
     // click para detalle (evitar si se toca un botón)
-    c.addEventListener('click', (e) => {
+    c.addEventListener('click', e => {
       if (e.target.closest('.icon-btn')) return;
       openSocioDetail(r);
     });
@@ -279,18 +309,23 @@ function buildSociosCards(rows) {
   });
 
   // acciones
-  $all('.icon-btn.edit', grid).forEach((b) =>
-    b.addEventListener('click', (e) => {
+  $all('.icon-btn.edit', grid).forEach(b =>
+    b.addEventListener('click', e => {
+      e.preventDefault();
       e.stopPropagation();
-      const id = Number(b.closest('.card').dataset.id);
-      openSocioModal(rows.find((x) => Number(x.id) === id), currentCatName);
+      const card = b.closest('.card');
+      const id = card?.dataset?.id; // Mantener como string (UUID)
+      const socio = rows.find(x => x.id === id); // Comparar strings directamente
+
+      openSocioModal(socio, currentCatName);
     })
   );
 
-  $all('.icon-btn.delete', grid).forEach((b) =>
-    b.addEventListener('click', (e) => {
+  $all('.icon-btn.delete', grid).forEach(b =>
+    b.addEventListener('click', e => {
       e.stopPropagation();
-      const id = Number(b.closest('.card').dataset.id);
+      const id = b.closest('.card').dataset.id; // Mantener como string (UUID)
+
       deleteSocio(id);
     })
   );
@@ -299,19 +334,22 @@ function buildSociosCards(rows) {
 }
 
 /* ========== Lista (con balance incluido) ========== */
-function buildSociosTable(rows) {
+function buildSociosTable(rows, currentCatName) {
   const table = el('table', { class: 'list' });
   const thead = el('thead');
   const trh = el('tr');
-  ['', 'Empresa', 'Titular', 'Teléfono', 'Dirección', 'Balance', ''].forEach((h) => {
+
+  ['', 'Empresa', 'Titular', 'Teléfono', 'Dirección', 'Balance', ''].forEach(h => {
     const th = el('th', {}, [h]);
+
     trh.appendChild(th);
   });
   thead.appendChild(trh);
   table.appendChild(thead);
 
   const tbody = el('tbody');
-  rows.forEach((r) => {
+
+  rows.forEach(r => {
     const tr = el('tr', { 'data-id': r.id });
 
     // avatar
@@ -321,6 +359,7 @@ function buildSociosTable(rows) {
       : `<div class="avatar" style="display:grid;place-items:center;color:var(--muted);font-weight:700">${initials(
           r.empresa
         )}</div>`;
+
     td0.innerHTML = avatar;
 
     const td1 = el('td', {}, [r.empresa || '—']);
@@ -332,8 +371,10 @@ function buildSociosTable(rows) {
     const td6 = el('td');
     const mini = el('div', { class: 'mini-actions' });
     const ebtn = el('button', { class: 'icon-btn edit', title: 'Editar', type: 'button' });
+
     ebtn.innerHTML = pencil();
     const dbtn = el('button', { class: 'icon-btn delete', title: 'Eliminar', type: 'button' });
+
     dbtn.innerHTML = trash();
     mini.appendChild(ebtn);
     mini.appendChild(dbtn);
@@ -348,7 +389,7 @@ function buildSociosTable(rows) {
     tr.appendChild(td6);
 
     // click en fila (evita botones)
-    tr.addEventListener('click', (e) => {
+    tr.addEventListener('click', e => {
       if (e.target.closest('.mini-actions')) return;
       openSocioDetail(r);
     });
@@ -369,34 +410,37 @@ function buildSociosTable(rows) {
           const supabase = getClient();
           const items = $all('tr[data-id]', tbody).map((tr, idx) => ({
             id: Number(tr.getAttribute('data-id')),
-            orden: idx + 1,
+            orden: idx + 1
           }));
+
           await Promise.all(
-            items.map((it) =>
-              supabase.from('socios').update({ orden: it.orden }).eq('id', it.id)
-            )
+            items.map(it => supabase.from('socios').update({ orden: it.orden }).eq('id', it.id))
           );
         } catch (err) {
           console.error(err);
           alert('No se pudo guardar el nuevo orden de socios.');
         }
-      },
+      }
     });
   }
 
   // acciones
-  $all('.icon-btn.edit', table).forEach((b) =>
-    b.addEventListener('click', (e) => {
+  $all('.icon-btn.edit', table).forEach(b =>
+    b.addEventListener('click', e => {
+      e.preventDefault();
       e.stopPropagation();
-      const id = Number(b.closest('tr').dataset.id);
-      openSocioModal(rows.find((x) => Number(x.id) === id), currentCatName);
+      const id = b.closest('tr').dataset.id; // Mantener como string (UUID)
+      const socio = rows.find(x => x.id === id); // Comparar strings directamente
+
+      openSocioModal(socio, currentCatName);
     })
   );
 
-  $all('.icon-btn.delete', table).forEach((b) =>
-    b.addEventListener('click', (e) => {
+  $all('.icon-btn.delete', table).forEach(b =>
+    b.addEventListener('click', e => {
       e.stopPropagation();
-      const id = Number(b.closest('tr').dataset.id);
+      const id = b.closest('tr').dataset.id; // Mantener como string (UUID)
+
       deleteSocio(id);
     })
   );
@@ -406,12 +450,17 @@ function buildSociosTable(rows) {
 
 /* ========== Borrado con confirmación (callback modal actual) ========== */
 async function deleteSocio(id) {
-  openConfirm('¿Eliminar este socio?', async () => {
-    const supabase = getClient();
-    const { error } = await supabase.from('socios').delete().eq('id', id);
-    if (error) alert(error.message);
-    else renderSocios();
-  }, 'Eliminar socio');
+  openConfirm(
+    '¿Eliminar este socio?',
+    async () => {
+      const supabase = getClient();
+      const { error } = await supabase.from('socios').delete().eq('id', id);
+
+      if (error) alert(error.message);
+      else renderSocios();
+    },
+    'Eliminar socio'
+  );
 }
 
 /* ========== Detalle del socio con tabs (hereda nombres de categoría) ========== */
@@ -424,11 +473,13 @@ export async function openSocioDetail(socio) {
   );
 
   const cat = await getCategoriaById(socio.categoria_id || currentCat);
+
   currentCatTab2 = cat?.tab2_name || 'Notas';
   currentCatTab3 = cat?.tab3_name || 'Archivos';
 
   const wrap = document.createElement('div');
   const tabs = document.createElement('div');
+
   tabs.className = 'tabs';
   tabs.id = 'socioDetailTabs';
 
@@ -442,15 +493,18 @@ export async function openSocioDetail(socio) {
     '</button>';
 
   const panel = document.createElement('div');
+
   panel.className = 'tab-panel';
   panel.id = 'socioDetailPanel';
   panel.innerHTML = renderSocioDetailPanel('tx', socio);
 
-  tabs.addEventListener('click', (e) => {
+  tabs.addEventListener('click', e => {
     const b = e.target.closest('.tab-btn');
+
     if (!b) return;
     const tab = b.getAttribute('data-tab');
-    $all('.tab-btn', tabs).forEach((x) => x.classList.toggle('active', x === b));
+
+    $all('.tab-btn', tabs).forEach(x => x.classList.toggle('active', x === b));
     panel.innerHTML = renderSocioDetailPanel(tab, socio);
   });
 
@@ -496,6 +550,7 @@ export async function handleSocioFormSubmit(e) {
 
   const empresa = f.empresa.value.trim();
   const titular = f.titular.value.trim();
+
   if (!empresa || !titular) return alert('Empresa y Titular son obligatorios');
 
   const telefono = f.telefono.value.trim();
@@ -503,11 +558,14 @@ export async function handleSocioFormSubmit(e) {
   const card_color = f.card_color.value || '#121a26';
 
   let socioId = f.getAttribute('data-edit-id') || null;
+
   if (socioId) {
+    socioId = Number(socioId);
     const up = await supabase
       .from('socios')
       .update({ empresa, titular, telefono, direccion, card_color })
       .eq('id', socioId);
+
     if (up.error) return alert(up.error.message);
   } else {
     const ins = await supabase
@@ -519,30 +577,29 @@ export async function handleSocioFormSubmit(e) {
           titular,
           telefono,
           direccion,
-          card_color,
-        },
+          card_color
+        }
       ])
       .select('id')
       .single();
+
     if (ins.error) return alert(ins.error.message);
     socioId = ins.data.id;
   }
 
   const file = f.avatar.files[0];
+
   if (file) {
     if (file.size > 2 * 1024 * 1024) return alert('El archivo supera 2 MB');
-    const path =
-      socioId +
-      '/' +
-      Date.now() +
-      '_' +
-      file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = socioId + '/' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const up = await supabase.storage.from('socios').upload(path, file, {
-      upsert: true,
+      upsert: true
     });
+
     if (!up.error) {
       const pub = supabase.storage.from('socios').getPublicUrl(path);
       const url = pub?.data?.publicUrl;
+
       if (url) {
         await supabase.from('socios').update({ avatar_url: url }).eq('id', socioId);
       }
@@ -558,8 +615,8 @@ export async function handleSocioFormSubmit(e) {
 
 /* ========== Iconos ========== */
 function pencil() {
-  return `<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" stroke-width="1.5"/></svg>`;
+  return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" stroke-width="1.5"/></svg>';
 }
 function trash() {
-  return `<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V4h6v3m-8 3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+  return '<svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V4h6v3m-8 3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 }

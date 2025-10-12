@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico - Ecologist-GPT</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #1e3a8a, #1e40af);
+            color: white; 
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        .test-result { 
+            margin: 10px 0; 
+            padding: 15px; 
+            border-radius: 8px; 
+            border-left: 4px solid;
+        }
+        .success { 
+            background: rgba(34, 197, 94, 0.1); 
+            color: #22c55e; 
+            border-left-color: #22c55e; 
+        }
+        .error { 
+            background: rgba(239, 68, 68, 0.1); 
+            color: #ef4444; 
+            border-left-color: #ef4444; 
+        }
+        .warning { 
+            background: rgba(245, 158, 11, 0.1); 
+            color: #f59e0b; 
+            border-left-color: #f59e0b; 
+        }
+        .info { 
+            background: rgba(59, 130, 246, 0.1); 
+            color: #3b82f6; 
+            border-left-color: #3b82f6; 
+        }
+        pre { 
+            background: rgba(0,0,0,0.3); 
+            padding: 15px; 
+            border-radius: 5px; 
+            overflow-x: auto; 
+            font-size: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #2563eb; }
+        .btn.success { background: #22c55e; }
+        .btn.error { background: #ef4444; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background: #22c55e; }
+        .status-error { background: #ef4444; }
+        .status-warning { background: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Diagnóstico - Ecologist-GPT</h1>
+            <p>Verificación completa del entorno de desarrollo</p>
+        </div>
+        
+        <div class="grid">
+            <div class="test-section">
+                <h3>🌐 Servidor Web</h3>
+                <div id="server-results"></div>
+                <button class="btn" onclick="testServer()">Probar Servidor</button>
+            </div>
+            
+            <div class="test-section">
+                <h3>⚙️ Configuración</h3>
+                <div id="config-results"></div>
+                <button class="btn" onclick="testConfig()">Verificar Config</button>
+            </div>
+            
+            <div class="test-section">
+                <h3>📱 Aplicación Principal</h3>
+                <div id="app-results"></div>
+                <button class="btn success" onclick="openMainApp()">Abrir App</button>
+                <button class="btn" onclick="testAppLoad()">Probar Carga</button>
+            </div>
+            
+            <div class="test-section">
+                <h3>🎨 Renderizado</h3>
+                <div id="render-results"></div>
+                <button class="btn" onclick="testRendering()">Probar CSS/JS</button>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 Resumen del Sistema</h3>
+            <div id="system-info"></div>
+            <button class="btn" onclick="showSystemInfo()">Mostrar Info</button>
+        </div>
+    </div>
+    
+    <script>
+        function addResult(containerId, type, title, message) {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `<strong>${title}</strong><br>${message}`;
+            container.appendChild(div);
+        }
+        
+        function clearResults(containerId) {
+            document.getElementById(containerId).innerHTML = '';
+        }
+        
+        function testServer() {
+            clearResults('server-results');
+            addResult('server-results', 'info', '🔄 Probando servidor...', 'Verificando conexión a localhost:8000');
+            
+            fetch('http://localhost:8000/index.html')
+                .then(response => {
+                    if (response.ok) {
+                        addResult('server-results', 'success', '✅ Servidor funcionando', `Status: ${response.status} - ${response.statusText}`);
+                        return response.text();
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                })
+                .then(html => {
+                    if (html.includes('Ecologist-GPT')) {
+                        addResult('server-results', 'success', '✅ Contenido correcto', 'El archivo index.html se sirve correctamente');
+                    } else {
+                        addResult('server-results', 'warning', '⚠️ Contenido inesperado', 'El archivo no contiene el contenido esperado');
+                    }
+                })
+                .catch(error => {
+                    addResult('server-results', 'error', '❌ Error de conexión', `No se puede conectar al servidor: ${error.message}`);
+                });
+        }
+        
+        function testConfig() {
+            clearResults('config-results');
+            
+            // Cargar config.js dinámicamente
+            const script = document.createElement('script');
+            script.src = 'http://localhost:8000/config.js';
+            script.onload = () => {
+                if (typeof window.APP_CONFIG !== 'undefined') {
+                    addResult('config-results', 'success', '✅ Config cargado', 'window.APP_CONFIG está disponible');
+                    
+                    if (window.APP_CONFIG.SUPABASE_URL) {
+                        addResult('config-results', 'success', '✅ Supabase URL', `URL: ${window.APP_CONFIG.SUPABASE_URL}`);
+                    } else {
+                        addResult('config-results', 'error', '❌ Supabase URL faltante', 'SUPABASE_URL no está configurado');
+                    }
+                    
+                    if (window.APP_CONFIG.SUPABASE_ANON_KEY) {
+                        addResult('config-results', 'success', '✅ Supabase Key', `Key: ${window.APP_CONFIG.SUPABASE_ANON_KEY.substring(0, 20)}...`);
+                    } else {
+                        addResult('config-results', 'error', '❌ Supabase Key faltante', 'SUPABASE_ANON_KEY no está configurado');
+                    }
+                } else {
+                    addResult('config-results', 'error', '❌ Config no encontrado', 'window.APP_CONFIG no está definido');
+                }
+            };
+            script.onerror = () => {
+                addResult('config-results', 'error', '❌ Error cargando config', 'No se pudo cargar config.js');
+            };
+            document.head.appendChild(script);
+        }
+        
+        function openMainApp() {
+            clearResults('app-results');
+            addResult('app-results', 'info', '🔄 Abriendo aplicación...', 'Abriendo la aplicación principal en nueva ventana');
+            
+            const appWindow = window.open('http://localhost:8000', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+            
+            if (appWindow) {
+                addResult('app-results', 'success', '✅ Ventana abierta', 'La aplicación se abrió correctamente. Verifica el renderizado.');
+                
+                // Verificar después de un momento
+                setTimeout(() => {
+                    if (appWindow.closed) {
+                        addResult('app-results', 'warning', '⚠️ Ventana cerrada', 'La ventana se cerró. Puede haber un error.');
+                    } else {
+                        addResult('app-results', 'info', 'ℹ️ Ventana activa', 'La ventana sigue abierta. Revisa la consola para errores.');
+                    }
+                }, 5000);
+            } else {
+                addResult('app-results', 'error', '❌ Error al abrir', 'No se pudo abrir la ventana. Verifica pop-ups bloqueados.');
+            }
+        }
+        
+        function testAppLoad() {
+            clearResults('app-results');
+            addResult('app-results', 'info', '🔄 Probando carga de aplicación...', 'Verificando recursos principales');
+            
+            const resources = [
+                'http://localhost:8000/assets/styles.css',
+                'http://localhost:8000/js/app.js',
+                'http://localhost:8000/js/services/supabase.js'
+            ];
+            
+            let loaded = 0;
+            resources.forEach((url, index) => {
+                fetch(url)
+                    .then(response => {
+                        if (response.ok) {
+                            loaded++;
+                            addResult('app-results', 'success', `✅ Recurso ${index + 1}`, `Cargado: ${url.split('/').pop()}`);
+                        } else {
+                            addResult('app-results', 'error', `❌ Recurso ${index + 1}`, `Error: ${url.split('/').pop()} - ${response.status}`);
+                        }
+                    })
+                    .catch(error => {
+                        addResult('app-results', 'error', `❌ Recurso ${index + 1}`, `Error: ${url.split('/').pop()} - ${error.message}`);
+                    });
+            });
+        }
+        
+        function testRendering() {
+            clearResults('render-results');
+            addResult('render-results', 'info', '🔄 Probando renderizado...', 'Verificando CSS y JavaScript');
+            
+            // Crear iframe para probar renderizado
+            const iframe = document.createElement('iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '400px';
+            iframe.style.border = '1px solid #ccc';
+            iframe.style.borderRadius = '5px';
+            iframe.src = 'http://localhost:8000';
+            
+            iframe.onload = () => {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const viewElement = iframeDoc.getElementById('view');
+                    const debugElement = iframeDoc.getElementById('debug');
+                    
+                    if (viewElement) {
+                        addResult('render-results', 'success', '✅ Elemento #view encontrado', 'El contenedor principal existe');
+                        
+                        if (viewElement.children.length > 0) {
+                            addResult('render-results', 'success', '✅ Contenido renderizado', `Elementos hijos: ${viewElement.children.length}`);
+                        } else {
+                            addResult('render-results', 'warning', '⚠️ Contenido vacío', 'El elemento #view está vacío - posible pantalla negra');
+                        }
+                    } else {
+                        addResult('render-results', 'error', '❌ Elemento #view no encontrado', 'El contenedor principal no existe');
+                    }
+                    
+                    if (debugElement) {
+                        addResult('render-results', 'success', '✅ Debug disponible', `Debug: ${debugElement.textContent}`);
+                    }
+                } catch (error) {
+                    addResult('render-results', 'error', '❌ Error de acceso', `No se puede acceder al contenido: ${error.message}`);
+                }
+            };
+            
+            iframe.onerror = () => {
+                addResult('render-results', 'error', '❌ Error cargando iframe', 'No se pudo cargar la aplicación en el iframe');
+            };
+            
+            const container = document.getElementById('render-results');
+            container.appendChild(iframe);
+        }
+        
+        function showSystemInfo() {
+            clearResults('system-info');
+            
+            const info = {
+                'User Agent': navigator.userAgent,
+                'URL Actual': window.location.href,
+                'Protocolo': window.location.protocol,
+                'Host': window.location.host,
+                'Timestamp': new Date().toLocaleString(),
+                'Pantalla': `${screen.width}x${screen.height}`,
+                'Ventana': `${window.innerWidth}x${window.innerHeight}`,
+                'Cookies Habilitadas': navigator.cookieEnabled,
+                'JavaScript': 'Habilitado'
+            };
+            
+            let infoHtml = '<pre>';
+            for (const [key, value] of Object.entries(info)) {
+                infoHtml += `${key}: ${value}\n`;
+            }
+            infoHtml += '</pre>';
+            
+            addResult('system-info', 'info', '📊 Información del Sistema', infoHtml);
+        }
+        
+        // Auto-ejecutar algunas pruebas al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            addResult('server-results', 'info', '🚀 Diagnóstico iniciado', 'Haz clic en los botones para ejecutar las pruebas');
+            showSystemInfo();
+        });
+    </script>
+</body>
+</html>

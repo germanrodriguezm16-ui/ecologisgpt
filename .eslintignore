@@ -1,0 +1,14 @@
+# Archivos a ignorar en ESLint
+node_modules/
+dist/
+coverage/
+*.min.js
+assets/vendor/
+docs/
+*.log
+*.tmp
+*.bak
+.DS_Store
+.env
+.vscode/
+backups/

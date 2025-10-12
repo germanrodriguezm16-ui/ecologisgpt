@@ -1,0 +1,114 @@
+{
+  "auto_update_config": {
+    "enabled": true,
+    "update_interval_hours": 24,
+    "last_update": null,
+    "watch_paths": [
+      "js/",
+      "assets/",
+      "index.html"
+    ],
+    "exclude_patterns": [
+      "node_modules/",
+      ".git/",
+      "*.log",
+      "*.tmp"
+    ],
+    "patterns_to_detect": {
+      "validation_patterns": [
+        "if\\s*\\(\\s*!\\s*\\w+\\s*\\)",
+        "function.*validate",
+        "\\$\\w+\\(.*\\)\\s*&&"
+      ],
+      "error_handling": [
+        "try\\s*\\{",
+        "catch\\s*\\(",
+        "console\\.error",
+        "throw\\s+new\\s+Error"
+      ],
+      "dom_manipulation": [
+        "\\$\\w+\\(",
+        "querySelector",
+        "addEventListener",
+        "innerHTML",
+        "appendChild"
+      ],
+      "async_operations": [
+        "async\\s+function",
+        "await\\s+",
+        "Promise\\.",
+        "\\.then\\(",
+        "\\.catch\\("
+      ],
+      "supabase_operations": [
+        "supabase\\.from",
+        "getClient\\(\\)",
+        "\\.select\\(",
+        "\\.insert\\(",
+        "\\.update\\(",
+        "\\.delete\\("
+      ]
+    },
+    "issues_to_detect": {
+      "uuid_to_number_conversion": [
+        "Number\\(.*\\.dataset\\.id\\)",
+        "Number\\(.*\\.id\\)"
+      ],
+      "debug_code_present": [
+        "console\\.log.*\\[.*\\]",
+        "console\\.debug",
+        "debugger;",
+        "<!--.*debug.*-->"
+      ],
+      "undefined_css_variables": [
+        "var\\(--\\w+\\)"
+      ],
+      "missing_dom_validation": [
+        "\\$\\w+\\(.*\\)(?!.*if\\s*\\(\\s*!\\s*\\$\\w+)"
+      ],
+      "hardcoded_values": [
+        "localhost:8080",
+        "http://localhost",
+        "password.*=.*['\"].*['\"]"
+      ]
+    },
+    "solutions_templates": {
+      "uuid_to_number_conversion": {
+        "description": "Conversión incorrecta de UUID a número",
+        "solution": "Mantener UUIDs como strings: `const id = element.dataset.id;` en lugar de `Number(element.dataset.id)`",
+        "example_before": "const id = Number(card.dataset.id);",
+        "example_after": "const id = card.dataset.id;"
+      },
+      "debug_code_present": {
+        "description": "Código de debug presente en producción",
+        "solution": "Remover logs de debug antes de commit",
+        "example_before": "console.log('[DEBUG]', variable);",
+        "example_after": "// Log removido para producción"
+      },
+      "undefined_css_variables": {
+        "description": "Variables CSS no definidas",
+        "solution": "Definir variables en :root antes de usarlas",
+        "example_before": "background: var(--primary);",
+        "example_after": ":root { --primary: #22c55e; }"
+      },
+      "missing_dom_validation": {
+        "description": "Falta validación de elementos DOM",
+        "solution": "Validar elementos antes de manipularlos",
+        "example_before": "$('#element').innerHTML = content;",
+        "example_after": "const el = $('#element'); if (!el) return; el.innerHTML = content;"
+      }
+    },
+    "notification_settings": {
+      "enabled": true,
+      "email": null,
+      "webhook_url": null,
+      "console_output": true
+    },
+    "backup_settings": {
+      "enabled": true,
+      "backup_before_update": true,
+      "backup_path": "docs/backups/",
+      "keep_backups_days": 30
+    }
+  }
+}

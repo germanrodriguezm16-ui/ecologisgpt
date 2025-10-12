@@ -1,5 +1,7 @@
 // Formateo sencillo usado en listados: convierte número a string con separador de miles y coma decimal
-export function fmt(n){ return Number(n||0).toLocaleString('es-CO',{maximumFractionDigits:2}); }
+export function fmt(n) {
+  return Number(n || 0).toLocaleString('es-CO', { maximumFractionDigits: 2 });
+}
 
 // Formateo en vivo para input de moneda colombiano.
 // - acepta que el usuario escriba '.' o ',' como separador decimal
@@ -8,7 +10,7 @@ export function fmt(n){ return Number(n||0).toLocaleString('es-CO',{maximumFract
 // - preserva la posición del caret (cursor) lo mejor posible
 // Uso: on input -> const {value, caret} = formatCurrencyLive(el.value, el.selectionStart); el.value = value; el.setSelectionRange(caret, caret);
 // prevWasDecimal: optional boolean indicating whether previous value was treated as decimal
-export function formatCurrencyLive(rawValue, caretPos){
+export function formatCurrencyLive(rawValue, caretPos) {
   // Implementación explícita solicitada por el equipo:
   // - No insertar decimales por longitud
   // - Sólo decimales si el usuario escribió '.' o ','
@@ -17,7 +19,7 @@ export function formatCurrencyLive(rawValue, caretPos){
 
   if (rawValue == null) rawValue = '';
   // 1) Normaliza: permite sólo dígitos, punto y coma
-  let raw = String(rawValue).replace(/[^0-9.,]/g, '');
+  const raw = String(rawValue).replace(/[^0-9.,]/g, '');
 
   // 2) Detecta si el usuario ESCRIBIÓ decimal
   const hasUserDecimal = raw.indexOf('.') !== -1 || raw.indexOf(',') !== -1;
@@ -28,8 +30,9 @@ export function formatCurrencyLive(rawValue, caretPos){
   let intPart = '';
   let decPart = '';
 
-  if (hasUserDecimal){
+  if (hasUserDecimal) {
     const parts = norm.split('.', 2);
+
     intPart = parts[0] || '';
     decPart = parts[1] || '';
   } else {
@@ -47,10 +50,11 @@ export function formatCurrencyLive(rawValue, caretPos){
 
   // 6) Construye display
   let display = '';
-  if (hasUserDecimal){
-    if (decPart.length){
+
+  if (hasUserDecimal) {
+    if (decPart.length) {
       // mostrar hasta 2 decimales mientras escribe
-      display = intFmt + ',' + decPart.slice(0,2);
+      display = intFmt + ',' + decPart.slice(0, 2);
     } else {
       // usuario escribió separador pero aún no puso decimales
       display = intFmt + ',';
@@ -61,5 +65,6 @@ export function formatCurrencyLive(rawValue, caretPos){
 
   // caret simple: colocarlo al final del texto formateado
   const caret = display.length;
+
   return { value: display, caret, isDecimal: hasUserDecimal && decPart.length > 0 };
 }
