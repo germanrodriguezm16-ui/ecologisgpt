@@ -1,6 +1,6 @@
 // Formateo sencillo usado en listados: convierte número a string con separador de miles y coma decimal
-export function fmt(n) {
-  return Number(n || 0).toLocaleString('es-CO', { maximumFractionDigits: 2 });
+export function fmt (n) {
+  return Number(n || 0).toLocaleString('es-CO', { maximumFractionDigits: 2 })
 }
 
 // Formateo en vivo para input de moneda colombiano.
@@ -10,61 +10,91 @@ export function fmt(n) {
 // - preserva la posición del caret (cursor) lo mejor posible
 // Uso: on input -> const {value, caret} = formatCurrencyLive(el.value, el.selectionStart); el.value = value; el.setSelectionRange(caret, caret);
 // prevWasDecimal: optional boolean indicating whether previous value was treated as decimal
-export function formatCurrencyLive(rawValue, caretPos) {
+export function formatCurrencyLive (rawValue, caretPos) {
   // Implementación explícita solicitada por el equipo:
   // - No insertar decimales por longitud
   // - Sólo decimales si el usuario escribió '.' o ','
   // - Formatear miles sólo en la parte entera
   // - No completar centavos durante input (opcional en blur)
 
-  if (rawValue == null) rawValue = '';
+  if (rawValue == null) rawValue = ''
   // 1) Normaliza: permite sólo dígitos, punto y coma
-  const raw = String(rawValue).replace(/[^0-9.,]/g, '');
+  const raw = String(rawValue).replace(/[^0-9.,]/g, '')
 
   // 2) Detecta si el usuario ESCRIBIÓ decimal
-  const hasUserDecimal = raw.indexOf('.') !== -1 || raw.indexOf(',') !== -1;
+  const hasUserDecimal = raw.indexOf('.') !== -1 || raw.indexOf(',') !== -1
 
   // 3) Normaliza decimal a punto interno
-  const norm = raw.replace(/,/g, '.');
+  const norm = raw.replace(/,/g, '.')
 
-  let intPart = '';
-  let decPart = '';
+  let intPart = ''
+  let decPart = ''
 
   if (hasUserDecimal) {
-    const parts = norm.split('.', 2);
+    const parts = norm.split('.', 2)
 
-    intPart = parts[0] || '';
-    decPart = parts[1] || '';
+    intPart = parts[0] || ''
+    decPart = parts[1] || ''
   } else {
-    intPart = norm;
-    decPart = '';
+    intPart = norm
+    decPart = ''
   }
 
   // 4) Limpia dígitos
-  intPart = intPart.replace(/\D/g, '');
-  decPart = decPart.replace(/\D/g, '');
+  intPart = intPart.replace(/\D/g, '')
+  decPart = decPart.replace(/\D/g, '')
 
   // 5) Formatea miles SOLO en intPart (con '.')
   // No forzamos ceros ni decimales aquí
-  const intFmt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const intFmt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 
   // 6) Construye display
-  let display = '';
+  let display = ''
 
   if (hasUserDecimal) {
     if (decPart.length) {
       // mostrar hasta 2 decimales mientras escribe
-      display = intFmt + ',' + decPart.slice(0, 2);
+      display = intFmt + ',' + decPart.slice(0, 2)
     } else {
       // usuario escribió separador pero aún no puso decimales
-      display = intFmt + ',';
+      display = intFmt + ','
     }
   } else {
-    display = intFmt;
+    display = intFmt
   }
 
   // caret simple: colocarlo al final del texto formateado
-  const caret = display.length;
+  const caret = display.length
 
-  return { value: display, caret, isDecimal: hasUserDecimal && decPart.length > 0 };
+  return { value: display, caret, isDecimal: hasUserDecimal && decPart.length > 0 }
+}
+
+// Formateo de dinero en pesos colombianos
+export function fmtMoneyCOP (n) {
+  try {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      maximumFractionDigits: 0
+    }).format(n || 0)
+  } catch (_) {
+    return '$' + (n || 0)
+  }
+}
+
+// Calcula el signo de una transacción desde la perspectiva de un socio
+export function computeTxSign (tx, { perspectiveSocioId = null } = {}) {
+  const o = perspectiveSocioId && tx.origen_socio_id === perspectiveSocioId
+  const d = perspectiveSocioId && tx.destino_socio_id === perspectiveSocioId
+
+  return o ? -1 : (d ? +1 : 0)
+}
+
+// Construye el concepto de una transacción con formato
+export function buildConcepto ({ origenNombre, destinoNombre, comentario }) {
+  const o = origenNombre || '—'
+  const d = destinoNombre || '—'
+  const c = (comentario && comentario.trim()) ? ` — ${comentario.trim()}` : ''
+
+  return { texto: `${o} → ${d}${c}`, o, d }
 }

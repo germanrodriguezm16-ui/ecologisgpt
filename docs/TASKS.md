@@ -9,13 +9,135 @@ Este archivo mantiene un registro simple de prioridades y acciones relacionadas 
 - Crear pruebas unitarias mínimas para el FSM de `js/utils/currency.js`.
 - Evaluar integración de date-time picker (flatpickr) para navegadores sin `showPicker()`.
 
+### Inventario - Pendientes
+- Implementar guardado real en Supabase para crear/editar productos
+- Implementar eliminación de productos con validación de lotes existentes
+- Integrar `fn_fifo_consume` con módulo de Pedidos (cuando se confirme entrega)
+- Implementar lógica real para contadores: `comprometido`, `en_reparto`, `en_devolucion`
+- Desarrollar filtros funcionales en pestaña Movimientos
+- Desarrollar pestaña Análisis con reportes avanzados
+
 ## En progreso
 - Crear y mantener documentación en `/docs` (esta tarea). — En progreso: documentos base creados.
 
 ## Completadas
-- Implementación de FSM para input de moneda (entrada incremental y formateo). (Completado)
-- Modal `Nueva transacción` rediseñado y validaciones básicas añadidas.
-- Subida y previsualización de comprobante en modal (objectURL), con revocación en cierre.
+
+### 2025-10-13 - Flujo "Cargar Stock" en Inventario
+
+**Funcionalidad:** Implementación completa del flujo para registrar entradas de mercancía de proveedores en el módulo de Inventario.
+
+**Alcance (MIN-INVASIVO):**
+- Modal "Cargar Stock" con campos: proveedor, fecha, forma de pago, nota, lista de productos
+- Validaciones: proveedor obligatorio, ≥1 producto, cantidad ≥1, precio ≥0, nota ≤140
+- Persistencia secuencial en Supabase:
+  1. INSERT en `lotes` (uno por producto)
+  2. UPDATE `productos.disponible` (agrupado por product_id)
+  3. INSERT en `stock_ledger` (trazabilidad con ref a lotes)
+- Refrescar selectivo: solo productos y movimientos afectados
+- Zona horaria CO: UI en Colombia, persistencia en UTC
+
+**Archivos modificados:**
+- `index.html` - Modal `#modalCargarStock` (líneas 506-628)
+- `js/views/inventario.js` - Botón + implementación completa (líneas 98, 200-206, 927-1368)
+
+**Mappings concretos:**
+- `lotes`: product_id, supplier_id, qty_in, unit_cost, received_at (UTC), qty_consumed=0
+- `productos`: disponible = disponible + cantidad (permite negativos)
+- `stock_ledger`: kind='ENTRADA', product_id, supplier_id, qty, unit_cost, total, ref_table='lotes', ref_id, ref_note='CARGA_STOCK'
+
+**UX:**
+- Cerrar modal: X, Esc, click en backdrop
+- Agregar/eliminar productos dinámicamente
+- Precios prefill desde producto al seleccionar
+- Resumen automático: total ítems, unidades, compra
+- Botón deshabilitado hasta cumplir requisitos
+- Alerts de éxito/error con detalles RLS/Policy
+
+**Criterios de aceptación:**
+- ✅ Botón "📦 Cargar stock" visible en Movimientos
+- ✅ Modal abre con fecha actual CO
+- ✅ Proveedores cargados desde categoría "Proveedores"
+- ✅ Validaciones funcionan correctamente
+- ✅ Persistencia en Supabase sin modificar schema
+- ✅ Refrescar selectivo (no recarga toda la vista)
+- ✅ Manejo de errores RLS/Policy
+
+**Pendiente:**
+- [ ] Integración con tabla `transacciones` para contabilidad
+- [ ] Toast en lugar de alerts
+- [ ] Loading spinner durante persistencia
+- [ ] Validación en tiempo real
+
+**Documentación:**
+- `docs/CHANGELOG_CARGAR_STOCK.md` - Changelog detallado
+- `docs/CARGAR_STOCK_RESUMEN.md` - Resumen ejecutivo
+
+---
+
+### 2025-10-13 - Fix: Transacciones no visibles en pestaña de Socios
+
+**Problema:** Las transacciones no se mostraban en la pestaña "Transacciones" del detalle de socios, a pesar de que los logs confirmaban que los datos se cargaban correctamente desde Supabase y se renderizaban en el DOM.
+
+**Causa raíz:** El panel de detalles (`.tab-panel`) se creaba sin la clase `active`, que es requerida por el CSS para hacer visible el contenido:
+```css
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+```
+
+**Solución aplicada:**
+- **Archivo:** `js/views/socios.js` - Línea 485
+- **Cambio:** `panel.className = 'tab-panel'` → `panel.className = 'tab-panel active'`
+- **Impacto:** Mínimo y quirúrgico - solo agrega la clase `active` al panel inicial
+
+**Archivos modificados:**
+- `js/views/socios.js` - Agregada clase `active` al panel de detalles
+- `js/views/transacciones.js` - Limpieza de estilos temporales de debug
+- `assets/visual-design.css` - Agregados estilos específicos para `#socioTransaccionesContainer` (posteriormente innecesarios pero no invasivos)
+
+**Resultado:**
+- ✅ Transacciones visibles en la pestaña de detalles del socio
+- ✅ Tabla renderizada correctamente con formato visual
+- ✅ Sin efectos secundarios en otros módulos
+- ✅ Logs de debug mantenidos para futuras investigaciones
+
+**Criterios de aceptación verificados:**
+- ✅ Al hacer clic en un socio, se abre el panel de detalles
+- ✅ La pestaña "Transacciones" es visible por defecto
+- ✅ Las transacciones del socio se muestran en una tabla formateada
+- ✅ Los valores positivos/negativos tienen el color correcto según la perspectiva
+- ✅ Las fechas se muestran en formato Bogotá
+- ✅ Sin errores en consola
+
+---
+
+### 2025-10-13 - Módulo de Inventario
+- ✅ Implementación completa del módulo de Inventario (v1.0.0)
+  - 3 pestañas: Stock Operativo, Movimientos, Análisis
+  - Sistema de tarjetas de productos con vista expandible
+  - Tabla de movimientos de stock
+  - Integración con Supabase (tablas, vistas, funciones RPC)
+  - Sistema FIFO para gestión de lotes
+  - FAB para crear productos (Ctrl+N)
+  - Buscador en tiempo real
+  - Persistencia de pestaña activa en localStorage
+  - Documentación completa (`docs/INVENTARIO.md`, `docs/CHANGELOG_INVENTARIO.md`)
+  - Schema SQL completo (`sql/inventario-schema.sql`)
+  - 5 errores corregidos (appendChild, CSSStyleDeclaration, children.forEach, onclick, UUID proveedores)
+
+### Anteriores
+- ✅ Implementación de FSM para input de moneda (entrada incremental y formateo)
+- ✅ Modal `Nueva transacción` rediseñado y validaciones básicas añadidas
+- ✅ Subida y previsualización de comprobante en modal (objectURL), con revocación en cierre
+- ✅ Sistema global de fechas con formato corto "LUN 10 OCT 25 — 23:15" y timezone Bogotá
+- ✅ Sistema de diseño visual rico con iconos, gradientes y animaciones
+- ✅ Aplicación de identidad visual LCDM en toda la aplicación
+- ✅ Corrección de contraste en tablas y badges
+- ✅ Integración de transacciones en vista de socios
 
 ---
 

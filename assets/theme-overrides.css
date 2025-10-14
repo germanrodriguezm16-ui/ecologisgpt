@@ -1,0 +1,192 @@
+/* assets/theme-overrides.css - Overrides seguros de tema por módulo */
+/* 
+ * REGLAS:
+ * - Solo reglas con scope de página o utilidades opt-in
+ * - No redefinir componentes base sin scope
+ * - No cambiar position/display/pointer-events/z-index de componentes base
+ * - Mantener theme-lcdm.css como fuente de verdad
+ */
+
+/* =====================================================
+   VARIANTES OPT-IN NO INTRUSIVAS
+   ===================================================== */
+
+/* Variantes de botones que se pueden aplicar manualmente */
+.btn.is-bright { 
+  filter: saturate(1.08) brightness(1.02); 
+}
+
+.btn.is-accent { 
+  background: var(--lcdm-accent); 
+  color: #fff; 
+}
+
+.btn.is-muted { 
+  background: var(--lcdm-surface); 
+  color: var(--lcdm-on-surface); 
+  border: 1px solid var(--lcdm-border); 
+}
+
+/* =====================================================
+   OVERRIDES POR MÓDULO - SOCIOS
+   ===================================================== */
+
+.partners-page .icon-btn--edit { 
+  background: var(--lcdm-accent); 
+  color: #fff; 
+}
+
+.partners-page .icon-btn--delete { 
+  background: var(--lcdm-danger); 
+  color: #fff; 
+}
+
+.partners-page .icon-btn--config { 
+  background: var(--lcdm-primary); 
+  color: #fff; 
+}
+
+/* Botón crear socio más prominente */
+.partners-page .btn--primary { 
+  background: var(--lcdm-primary); 
+  color: var(--lcdm-on-primary); 
+  box-shadow: 0 4px 12px rgba(255, 122, 0, 0.3); 
+}
+
+/* =====================================================
+   OVERRIDES POR MÓDULO - TRANSACCIONES
+   ===================================================== */
+
+.transactions-page .fab { 
+  background: var(--lcdm-primary); 
+  color: #fff; 
+  box-shadow: 0 8px 24px rgba(255, 122, 0, 0.35), 
+              0 4px 12px rgba(0, 0, 0, 0.4),
+              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.transactions-page .fab:hover { 
+  background: var(--lcdm-primary-600); 
+  box-shadow: 0 16px 40px rgba(255, 122, 0, 0.45), 
+              0 8px 20px rgba(0, 0, 0, 0.5),
+              0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+
+/* Tabla de transacciones con mejor contraste */
+.transactions-page .tx-col-fecha { 
+  color: #374151; 
+  font-weight: 500; 
+}
+
+.transactions-page .tx-col-concepto { 
+  color: #374151; 
+  font-weight: 500; 
+}
+
+.transactions-page .tx-valor-pos { 
+  color: #059669; 
+  font-weight: 700; 
+}
+
+.transactions-page .tx-valor-neg { 
+  color: #dc2626; 
+  font-weight: 700; 
+}
+
+/* =====================================================
+   OVERRIDES POR MÓDULO - INVENTARIO
+   ===================================================== */
+
+.inventory-page .fab { 
+  background: var(--lcdm-accent); 
+  color: #fff; 
+  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.35), 
+              0 4px 12px rgba(0, 0, 0, 0.4),
+              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.inventory-page .fab:hover { 
+  background: var(--lcdm-accent-600); 
+  box-shadow: 0 16px 40px rgba(34, 197, 94, 0.45), 
+              0 8px 20px rgba(0, 0, 0, 0.5),
+              0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+
+/* Título de inventario con mejor contraste */
+.inventory-page .module-header h2 { 
+  color: #ffffff; 
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); 
+}
+
+/* Badges de stock con mejor contraste */
+.inventory-page .badge { 
+  font-weight: 600; 
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2); 
+}
+
+.inventory-page .badge--available { 
+  background: var(--lcdm-accent); 
+  color: #fff; 
+}
+
+.inventory-page .badge--committed { 
+  background: var(--lcdm-warning); 
+  color: #fff; 
+}
+
+.inventory-page .badge--delivery { 
+  background: var(--lcdm-primary); 
+  color: #fff; 
+}
+
+.inventory-page .badge--return { 
+  background: var(--lcdm-danger); 
+  color: #fff; 
+}
+
+/* =====================================================
+   OVERRIDES POR MÓDULO - CATEGORÍAS
+   ===================================================== */
+
+.categories-page .icon-btn--edit { 
+  background: var(--lcdm-accent); 
+  color: #fff; 
+}
+
+.categories-page .icon-btn--delete { 
+  background: var(--lcdm-danger); 
+  color: #fff; 
+}
+
+.categories-page .icon-btn--config { 
+  background: var(--lcdm-primary); 
+  color: #fff; 
+}
+
+/* Botón crear categoría más prominente */
+.categories-page .btn--primary { 
+  background: var(--lcdm-primary); 
+  color: var(--lcdm-on-primary); 
+  box-shadow: 0 4px 12px rgba(255, 122, 0, 0.3); 
+}
+
+/* =====================================================
+   UTILIDADES DE DEBUGGING (OPCIONAL)
+   ===================================================== */
+
+/* Para debugging visual - remover en producción */
+.debug-scope .partners-page { 
+  outline: 2px dashed var(--lcdm-accent); 
+}
+
+.debug-scope .transactions-page { 
+  outline: 2px dashed var(--lcdm-primary); 
+}
+
+.debug-scope .inventory-page { 
+  outline: 2px dashed var(--lcdm-accent); 
+}
+
+.debug-scope .categories-page { 
+  outline: 2px dashed var(--lcdm-primary); 
+}
