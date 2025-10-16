@@ -1,0 +1,388 @@
+/**
+ * Tema "La Casa del Motero" (LCDM)
+ * Identidad visual oficial con base oscura y acentos naranja
+ * Actualizado: 2025-10-12 15:30
+ */
+
+:root {
+  /* === PALETA OFICIAL LCDM === */
+  
+  /* Naranja principal (del logo) */
+  --color-primary: #FF7A00;
+  --color-primary-600: #E86E00;     /* Hover */
+  --color-primary-700: #CC6300;     /* Active/Pressed */
+  
+  /* Fondos oscuros */
+  --color-bg: #0B0B0B;              /* Fondo general */
+  --color-surface: #141414;         /* Fondo alterno */
+  --color-card: #1A1A1A;            /* Tarjetas / paneles */
+  --color-border: #2A2A2A;          /* Bordes sutiles */
+  
+  /* Texto */
+  --color-text: #FFFFFF;            /* Texto principal */
+  --color-text-2: #D7D7D7;          /* Texto secundario */
+  
+  /* Acento */
+  --color-accent: #FFD166;          /* Amarillo cálido para avisos */
+  --money-green: #22c55e;           /* Verde para ícono de dinero */
+  
+  /* === TOKENS LCDM (para uso en el código) === */
+  --lcdm-primary: var(--color-primary);
+  --lcdm-primary-600: var(--color-primary-600);
+  --lcdm-primary-700: var(--color-primary-700);
+  --lcdm-bg: var(--color-bg);
+  --lcdm-surface: var(--color-surface);
+  --lcdm-card: var(--color-card);
+  --lcdm-border: var(--color-border);
+  --lcdm-text: var(--color-text);
+  --lcdm-text-2: var(--color-text-2);
+  --lcdm-on-surface: var(--color-text);
+  --lcdm-muted: var(--color-text-2);
+  --lcdm-accent: var(--color-accent);
+  
+  /* === MAPEO A VARIABLES EXISTENTES === */
+  /* Esto permite que el código existente use los nuevos colores LCDM */
+  --bg: var(--lcdm-bg);
+  --panel: var(--lcdm-surface);
+  --card: var(--lcdm-card);
+  --text: var(--lcdm-text);
+  --muted: var(--lcdm-text-2);
+  --accent: var(--lcdm-primary);
+  --accent-600: var(--lcdm-primary-600);
+  --accent-700: var(--lcdm-primary-700);
+  --border: var(--lcdm-border);
+  
+  /* Colores semánticos (mantener compatibilidad) */
+  --danger: #EF4444;
+  --warning: var(--lcdm-accent);    /* Amarillo LCDM para warnings */
+  
+  /* Colores auxiliares (azul para info, rojo para errores) */
+  --blue: #3B82F6;
+  --red: var(--danger);
+  --yellow: var(--lcdm-accent);
+  
+  /* Typography & radii (sin cambios) */
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius: 12px;
+  --radius-lg: 20px;
+  
+  /* Shadows (ajustados para tema oscuro LCDM) */
+  --shadow-1: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 10px 25px rgba(0, 0, 0, 0.6);
+  
+  /* Spacing (sin cambios) */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+}
+
+/**
+ * Sobrescribir body con tema LCDM
+ */
+body {
+  background: var(--lcdm-bg);
+  color: var(--lcdm-text);
+}
+
+/* DEBUG: Tema LCDM cargado correctamente - 2025-10-12 15:30 */
+
+/* === SISTEMA DE BOTONES CON TOKENS LCDM === */
+.btn {
+  /* Base button styles using tokens */
+  border: 1px solid var(--lcdm-border);
+  background: var(--lcdm-card);
+  color: var(--lcdm-text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background-color 0.2s ease, transform 0.1s ease-in-out, box-shadow 0.2s ease;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--lcdm-primary);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* === BOTONES PRINCIPALES === */
+/* Primary button - uses LCDM orange (Crear categoría, Crear socio, Guardar) */
+.btn.btn--primary,
+.btn--primary {
+  background: var(--lcdm-primary) !important;
+  color: var(--lcdm-text) !important;
+  border-color: var(--lcdm-primary-600) !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(255, 122, 0, 0.2);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--lcdm-primary-600);
+  box-shadow: 0 4px 12px rgba(255, 122, 0, 0.3);
+}
+
+.btn--primary:active:not(:disabled) {
+  background: var(--lcdm-primary-700);
+  transform: scale(0.97);
+}
+
+/* === BOTONES SECUNDARIOS === */
+/* Secondary button - outline style (botones intermedios) */
+.btn.btn--secondary,
+.btn--secondary {
+  background: var(--lcdm-surface) !important;
+  color: var(--lcdm-text) !important;
+  border-color: var(--lcdm-border) !important;
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background: var(--lcdm-card);
+  border-color: var(--lcdm-primary);
+  color: var(--lcdm-primary);
+}
+
+/* Ghost button - minimal style (Volver, cancelar) */
+.btn.btn--ghost,
+.btn--ghost {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--lcdm-text-2) !important;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--lcdm-text);
+}
+
+/* === BOTONES DE ACCIÓN === */
+/* Danger button - uses red token (Eliminar, cancelar) */
+.btn.btn--danger,
+.btn--danger {
+  background: var(--danger) !important;
+  color: var(--lcdm-text) !important;
+  border-color: var(--danger) !important;
+  font-weight: 600;
+}
+
+.btn--danger:hover:not(:disabled) {
+  filter: brightness(0.9);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+}
+
+/* Warning button - uses accent token (advertencias) */
+.btn.btn--warn,
+.btn--warn {
+  background: var(--lcdm-accent) !important;
+  color: var(--lcdm-bg) !important;
+  border-color: var(--lcdm-accent) !important;
+  font-weight: 600;
+}
+
+.btn--warn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 2px 8px rgba(255, 209, 102, 0.2);
+}
+
+/* === ICONOS DE BOTONES CON TOKENS === */
+.icon-btn {
+  background: var(--lcdm-surface);
+  border: 1px solid var(--lcdm-border);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease, transform 0.1s ease-in-out;
+  font-size: 14px;
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--lcdm-primary);
+  outline-offset: 2px;
+}
+
+.icon-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* Editar - Azul distintivo */
+.icon-btn.icon-btn--edit,
+.icon-btn--edit {
+  background: var(--blue) !important;
+  border-color: var(--blue) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.icon-btn--edit:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Eliminar - Rojo distintivo */
+.icon-btn.icon-btn--delete,
+.icon-btn--delete {
+  background: var(--danger) !important;
+  border-color: var(--danger) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+}
+
+.icon-btn--delete:hover:not(:disabled) {
+  filter: brightness(0.9);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Configurar - Gris con acento naranja en hover */
+.icon-btn.icon-btn--config,
+.icon-btn--config {
+  background: var(--lcdm-primary) !important;
+  border-color: var(--lcdm-primary) !important;
+  color: #fff !important;
+}
+
+.icon-btn--config:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 4px 8px rgba(255, 122, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+/* === BOTONES DE TAB === */
+.tab-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--lcdm-border);
+  border-bottom: none;
+  padding: 8px 12px;
+  border-radius: 10px 10px 0 0;
+  cursor: pointer;
+  color: var(--lcdm-text-2);
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover:not(:disabled) {
+  background: var(--lcdm-surface);
+  color: var(--lcdm-text);
+}
+
+.tab-btn.active {
+  background: var(--lcdm-card);
+  color: var(--lcdm-text);
+  border-color: var(--lcdm-primary);
+  font-weight: 600;
+}
+
+.tab-btn:focus-visible {
+  outline: 2px solid var(--lcdm-primary);
+  outline-offset: 2px;
+}
+
+/* === COMPATIBILIDAD CON CLASES ANTIGUAS === */
+/* Para botones que aún usan las clases antiguas */
+.icon-btn.edit {
+  background: var(--blue) !important;
+  border-color: var(--blue) !important;
+  color: #fff !important;
+}
+
+.icon-btn.delete {
+  background: var(--danger) !important;
+  border-color: var(--danger) !important;
+  color: #fff !important;
+}
+
+.icon-btn.config {
+  background: var(--lcdm-primary) !important;
+  border-color: var(--lcdm-primary) !important;
+  color: #fff !important;
+}
+
+/* FAB específico para transacciones con ícono de dinero */
+.fab--money > svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+  stroke: #ffffff;
+  fill: none;
+  pointer-events: none;
+}
+
+/* Vista simple lotes FIFO – capa de tema LCDM */
+.fifo-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  background: var(--lcdm-surface) !important;
+  color: var(--lcdm-on-surface) !important;
+  border: 1px solid var(--lcdm-border) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+}
+
+.fifo-table thead {
+  background: var(--lcdm-surface) !important;
+}
+
+.fifo-table thead th {
+  font-weight: 600 !important;
+  color: var(--lcdm-text) !important;
+  padding: 12px 16px !important;
+  text-align: left !important;
+  font-size: 14px !important;
+  border-bottom: 2px solid var(--lcdm-border) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  background: var(--lcdm-surface) !important;
+}
+
+.fifo-table tbody tr {
+  border-top: 1px solid var(--lcdm-border) !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.fifo-table tbody tr:hover {
+  background-color: var(--lcdm-surface) !important;
+}
+
+.fifo-table tbody tr:last-child td {
+  border-bottom: none !important;
+}
+
+.fifo-table td {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid var(--lcdm-border) !important;
+  font-size: 14px !important;
+  color: var(--lcdm-text) !important;
+  background: var(--lcdm-card) !important;
+  vertical-align: middle !important;
+}
+
+.fifo-table th {
+  padding: 12px 16px !important;
+  line-height: 1.35 !important;
+}
+
+.fifo-table .subtle {
+  color: var(--lcdm-muted) !important; /* datos secundarios */
+}
+
+.fifo-pill {
+  background: color-mix(in srgb, var(--lcdm-on-surface) 12%, transparent) !important;
+  color: var(--lcdm-on-surface) !important;
+  border-radius: 10px !important;
+  padding: .15rem .5rem !important;
+  font-size: .85rem !important;
+}
+

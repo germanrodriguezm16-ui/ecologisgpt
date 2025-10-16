@@ -1,0 +1,100 @@
+/**
+ * Tema "La Casa del Motero" (LCDM)
+ * Identidad visual oficial con base oscura y acentos naranja
+ * Actualizado: 2025-10-12 15:30
+ */
+
+:root {
+  /* === PALETA OFICIAL LCDM === */
+  
+  /* Naranja principal (del logo) */
+  --color-primary: #FF7A00;
+  --color-primary-600: #E86E00;     /* Hover */
+  --color-primary-700: #CC6300;     /* Active/Pressed */
+  
+  /* Fondos oscuros */
+  --color-bg: #0B0B0B;              /* Fondo general */
+  --color-surface: #141414;         /* Fondo alterno */
+  --color-card: #1A1A1A;            /* Tarjetas / paneles */
+  --color-border: #2A2A2A;          /* Bordes sutiles */
+  
+  /* Texto */
+  --color-text: #FFFFFF;            /* Texto principal */
+  --color-text-2: #D7D7D7;          /* Texto secundario */
+  
+  /* Acento */
+  --color-accent: #FFD166;          /* Amarillo cálido para avisos */
+  
+  /* === TOKENS LCDM (para uso en el código) === */
+  --lcdm-primary: var(--color-primary);
+  --lcdm-primary-600: var(--color-primary-600);
+  --lcdm-primary-700: var(--color-primary-700);
+  --lcdm-bg: var(--color-bg);
+  --lcdm-surface: var(--color-surface);
+  --lcdm-card: var(--color-card);
+  --lcdm-border: var(--color-border);
+  --lcdm-text: var(--color-text);
+  --lcdm-text-2: var(--color-text-2);
+  --lcdm-accent: var(--color-accent);
+  
+  /* === MAPEO A VARIABLES EXISTENTES === */
+  /* Esto permite que el código existente use los nuevos colores LCDM */
+  --bg: var(--lcdm-bg);
+  --panel: var(--lcdm-surface);
+  --card: var(--lcdm-card);
+  --text: var(--lcdm-text);
+  --muted: var(--lcdm-text-2);
+  --accent: var(--lcdm-primary);
+  --accent-600: var(--lcdm-primary-600);
+  --accent-700: var(--lcdm-primary-700);
+  --border: var(--lcdm-border);
+  
+  /* Colores semánticos (mantener compatibilidad) */
+  --danger: #EF4444;
+  --warning: var(--lcdm-accent);    /* Amarillo LCDM para warnings */
+  
+  /* Colores auxiliares (azul para info, rojo para errores) */
+  --blue: #3B82F6;
+  --red: var(--danger);
+  --yellow: var(--lcdm-accent);
+  
+  /* Typography & radii (sin cambios) */
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius: 12px;
+  --radius-lg: 20px;
+  
+  /* Shadows (ajustados para tema oscuro LCDM) */
+  --shadow-1: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 10px 25px rgba(0, 0, 0, 0.6);
+  
+  /* Spacing (sin cambios) */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+}
+
+/**
+ * Sobrescribir body con tema LCDM
+ */
+body {
+  background: var(--lcdm-bg);
+  color: var(--lcdm-text);
+}
+
+/* DEBUG: Tema LCDM cargado correctamente - 2025-10-12 15:30 */
+
+/* FORZAR CAMBIO VISIBLE - Botón crear debe ser NARANJA */
+.btn.create {
+  background: #FF7A00 !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 8px 20px rgba(255, 122, 0, 0.3) !important;
+  transform: scale(1.1) !important;
+}
+
+/* CAMBIO DRÁSTICO PARA VERIFICAR QUE FUNCIONA */
+body {
+  border-top: 10px solid #FF7A00 !important;
+}
+

@@ -22,6 +22,9 @@
     "security": "npm audit --audit-level moderate",
     "monitor": "node monitoring/error-tracker.js",
     "quality": "npm run lint:check && npm run test:coverage && npm run security",
+    "docs:update": "node scripts/docs-smart-update.js",
+    "status": "node scripts/status.js",
+    "verify": "node scripts/verify.js",
     "prepare": "husky"
   },
   "dependencies": {

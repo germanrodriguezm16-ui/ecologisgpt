@@ -24,6 +24,9 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Estado de documentación (generado automáticamente)
+docs/.doc-state.json
+
 # Archivos de build (si se añaden en el futuro)
 dist/
 build/
